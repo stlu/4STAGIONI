@@ -1,2 +1,0 @@
-# 4STAGIONI
-Progetto LSO
