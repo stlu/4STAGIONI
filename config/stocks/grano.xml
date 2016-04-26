@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<stock _jolie_type="void">
+	<name _jolie_type="string">Grano</name>
+	<info _jolie_type="void">
+		<availability _jolie_type="int">100</availability>
+		<price _jolie_type="double">100.00</price>
+		<wasting _jolie_type="void">
+			<low _jolie_type="int">1</low>
+			<high _jolie_type="int">3</high>
+			<interval _jolie_type="int">5</interval>
+		</wasting>
+		<production _jolie_type="void">
+			<low _jolie_type="int">3</low>
+			<high _jolie_type="int">6</high>
+			<interval _jolie_type="int">5</interval>
+		</production>
+	</info>
+</stock>
