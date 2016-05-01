@@ -1,6 +1,6 @@
 include "../config/config.iol"
 include "file.iol"
-include "../behaviour/stockInterface.iol"
+include "../deployment/stockInterface.iol"
 
 include "console.iol"
 include "string_utils.iol"
@@ -16,6 +16,10 @@ embedded {
 		"../embeddedService/StocksMng.ol" in StocksMng
 }
 
+// In the `sequential` and `concurrent` cases, the behavioural definition inside the main procedure must be an input statement.
+// mentre, nella modalità di default (single), posso inserire richieste a servizi
+execution { single }
+
 main {
 
 	install(
@@ -24,9 +28,12 @@ main {
 				// up to date
 				StocksDiscovererFault => println@Console( main.StocksDiscovererFault.msg )(),
 
+// todo: intercettare fault
 				IOException => throw( IOException ),
 				FileNotFound => throw( FileNotFound )
 			);
 
-	discover@StocksMng( )( )
+// effettua un check alla ricerca di nuovi stock ogni 30 secondi
+	discoveringInterval = 30000;
+	discover@StocksMng( discoveringInterval )( )
 }

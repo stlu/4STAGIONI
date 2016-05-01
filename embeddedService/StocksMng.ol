@@ -1,6 +1,6 @@
 include "../config/config.iol"
 include "file.iol"
-include "../behaviour/stockInterface.iol"
+include "../deployment/stockInterface.iol"
 
 include "console.iol"
 include "string_utils.iol"
@@ -39,19 +39,32 @@ embedded {
 		"StocksDiscoverer.ol" in StocksDiscoverer
 }
 
-execution { concurrent }
 
+
+// The first statement of the main procedure must be an input if the execution mode is not single
+execution { concurrent }
+// 'concurrent' causes a program behaviour to be instantiated and executed whenever its first input statement can receive
+// a message.
+// In the 'sequential' and 'concurrent' cases, the behavioural definition inside the main procedure must be an input statement.
+// A crucial aspect of behaviour instances is that each instance has its own private state, determining variable scoping.
+// This lifts programmers from worrying about race conditions in most cases.
+
+/*
 init {
+
+// è importante che dynamicStockList, generata dall'operazione discover, sia disponibile a tutti gli altri input
+// statements (occhio, è una variabile condivisa)
 	global.dynamicStockList = ""
 }
+*/
 
 main {
 
 // sulle operazioni buyStock e sellStock sono ricevute chiamate "aggregate" per tutti gli stock client in esecuzione
-// StocksMng svolge le veci di proxy tra il market e ciascun stock
+// StocksMng svolge le veci di 'proxy' tra il market e ciascun stock
 // (mentre per le chiamate in uscita, ciascun stock è assolutamente indipendente, ovvero dialoga con il market direttamente)
 // il motivo di tali scelte? Sostanzialmente l'assenza del dynamic binding sulle input port che, tradotto in altri termini,
-// non permette la definizione dinamica delle input port sulle singole istanze del thread stock.
+// non permette la definizione dinamica delle input port sulle singole istanze dei thread stock dinamicamente allocati
 
 // ricorda la composizione della struttura dynamicStockList (su cui è applicabile il dynamic lookup)
 // dynamicStockList.( stockName )[ 0 ].fileName
@@ -63,13 +76,11 @@ main {
 // per comunicare con la specifica istanza, imposto a runtime la location della outputPort StockInstance
 			StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
 // posso adesso avviare l'operazione sullo specifico stock
-			
-//			buyStock@StockInstance()( response )
-			buyStock@StockInstance( stockName )( response )
+			buyStock@StockInstance()( response )
 		} else {
 
 // todo: meglio lanciare un fault...
-			response = "TypeMismatch"
+			response = "lo stockName richiesto non esiste!"
 		}
 
 	} ] { nullProcess }
@@ -81,7 +92,7 @@ main {
 
 
 // operazione invocata da StocksLauncher
-	[ discover( request )( response ) {
+	[ discover( interval )( response ) {
 
 		while ( true ) {
 
@@ -134,19 +145,22 @@ main {
 						loadEmbeddedService@Runtime( embedInfo )( StockInstance.location );
 
 // qualora l'istruzione precedente non abbia generato alcun fault
-// aggiorno la dynamicStockList; il parametro location è di vitale importanza
+// aggiorno la dynamicStockList; il parametro location è di vitale importanza per la corretta identificazione delle istanze
 						global.dynamicStockList.( stockName )[ 0 ].location = StockInstance.location;
 						global.dynamicStockList.( stockName )[ 0 ].filename = stockFilename;
 
 // avvia la registrazione dello stock sul market
-						start@StockInstance( newStocks.stock[ k ] )()
+// potrebbe essere una OneWay? beh, in realtà attendo la risposta della procesura di registrazione sul market
+						start@StockInstance( newStocks.stock[ k ] )( response )
 					}
 				}
 			};
 
 			undef ( newStocks );
-			sleep@Time( 5000 )()
-		} // while
+			sleep@Time( interval )()
+		}; // while
+
+		response = ""
 
 	} ] { nullProcess }
 }

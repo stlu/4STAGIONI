@@ -31,10 +31,10 @@ type StockStaticStruct: void {
 // informazioni a runtime dello specifico stock
 type StockDynamicStruct: void {
 	.availability: int
-	.price: double
+//	.price: double
 }
 
-// struttura dati "light" utilizzata nel processo di discovering di nuovi stock
+// struttura dati "light" utilizzata nel processo di discovering di nuovi stock (fornita da StocksMng a StocksDiscoverer)
 // (contrapposta a dynamicStockList congeniata per semplificare il dynamic lookup)
 type IndexedStockList: void {
 	.filename[0,*]: string
@@ -45,10 +45,14 @@ type StocksDiscovererFaultType: void {
 	.msg: string
 }
 
+type StockToMarketRegistrationStruct: void {
+	.name: string
+	.price: double
+}
+
 // connette StocksLauncher e StocksMng
-// forse meglio utilizzare una OneWay per discoverStocks?
 interface StocksLauncherInterface {
-	RequestResponse: discover( void )( void )
+	RequestResponse: discover( int )( void )
 }
 
 // input: una file list di stocks già presenti;
@@ -61,14 +65,15 @@ interface StocksDiscovererInterface {
 
 // interfaccia di comunicazione con ciascuna stock instance dinamicamente allocata
 interface StockInstanceInterface {
-	RequestResponse: start( StockSubStruct )( void )
-	RequestResponse: buyStock( string )( string )
-	RequestResponse: sellStock( string )( string )	
+	RequestResponse: start( StockSubStruct )( string )
+	RequestResponse: buyStock( void )( string )
+	RequestResponse: sellStock( void )( string )
 }
 
 // from stocks to market
 interface StockToMarketCommunicationInterface {
-	RequestResponse: register( string )( string )
+// registrazione dello stock sul market
+	RequestResponse: registerStock( StockToMarketRegistrationStruct )( string )
 	RequestResponse: addStock( string )( string )
 	RequestResponse: destroyStock( string )( string )
 }

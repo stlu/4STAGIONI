@@ -1,6 +1,6 @@
 include "../config/config.iol"
 include "file.iol" // è necessario poichè sono rilanciati vari fault definiti in questa interfaccia
-include "../behaviour/stockInterface.iol"
+include "../deployment/stockInterface.iol"
 
 include "console.iol"
 include "string_utils.iol"
@@ -23,7 +23,6 @@ main {
 					IOException => throw( IOException ),
 					FileNotFound => throw( FileNotFound )
 				);
-
 
 		println@Console( "\nStocksDiscoverer@discover, stockList:" )();
 		valueToPrettyString@StringUtils( stockList )( result );
@@ -154,7 +153,8 @@ beh, non funziona! Cioè, non posso iniziare a popolare una struttura dati da un
 
 							response.stock[ newStocksCount ].static << xmlParsedTree;
 							response.stock[ newStocksCount ].dynamic.availability = xmlParsedTree.info.availability;
-							response.stock[ newStocksCount ].dynamic.price = xmlParsedTree.info.price;
+// per quanto riguarda lo stock, l'unica informazione dinamica a runtime è availability
+//							response.stock[ newStocksCount ].dynamic.price = xmlParsedTree.info.price;
 
 							newStocksCount++;
 
@@ -170,9 +170,7 @@ beh, non funziona! Cioè, non posso iniziare a popolare una struttura dati da un
 		};
 
 		if ( newStocksCount <= 0 ) {
-			with( stocksDiscovererFaultType ) {
-				.msg = "StocksDiscoverer@discover fault: the stock list is up to date"
-			};
+			with( stocksDiscovererFaultType ) { .msg = "StocksDiscoverer@discover fault: the stock list is up to date" };
 			throw( StocksDiscovererFault, stocksDiscovererFaultType )
 		}
 		
