@@ -1,0 +1,158 @@
+
+4STAGIONI-master/
+
+	main/
+
+		StocksLauncher.ol
+
+		Market.ol
+
+	embeddedService/
+
+		StocksMng.ol
+
+		StocksDiscoverer.ol
+
+		Stock.ol
+
+	config/
+
+		config.iol
+
+		stocks/
+
+			oro.xml
+
+			petrolio.xml
+
+			grano.xml
+
+	behaviour/
+
+		stockInterface.iol
+
+
+*****Stock.ol*****
+
+Implementa il behaviour di uno Stock.
+
+inputPort StockInstance (local)
+	per le comunicazioni del market verso ciascuno stock.
+	questa credo sia la porta al centro di tutte le discussioni di mercoledì
+	1) jolie non permette il dynamic binding sulle input port
+	2) in jolie una input port (a quanto abbiamo provato a capire con Stefano) è locale
+	alla singola istanza del behaviour, quindi al singolo stock.
+outputPort StockToMarketCommunication (socket://localhost:8001)
+	per le comunicazioni di ogni istanza con il market.
+
+operazioni
+	- 'start' che riceve in input la struttura dati di configurazione del nuovo
+	stock e registra lo stock presso il Market.
+	- 'buyStock' stub, bozza
+	- 'sellStock' stub, bozza
+
+*****config.iol*****
+
+Qui sono definite delle costanti per i path alla directory 'config' e alle sue
+sottodirectory.
+
+*****oro.xml - grano.xml - petrolio.xml*****
+
+Files di inizializzazione delle istanza di Stock.
+
+*****Market.ol*****
+
+Per il momento fa ben poco, invia le risposte alle richieste di registrazione in arrivo
+dagli Stock allo StocksMng, il quale recapita la risposta alla specifica istanza.
+
+inputPort StockToMarketCommunication (socket://localhost:8001)
+	a disposizione delle istanze di Stock
+
+outputPort MarketToStockCommunication (socket://localhost:8000)
+	attraverso la quale invia richieste a StockMng
+
+operazioni
+	- 'register' stampa a video il nome dello stock che chiede di registrarsi
+	e effettua un'operazione di buyStock presso questo Stock (tramite StockMng)
+
+*****stockInterface.iol*****
+
+Attraverso l'uso del costrutto 'type' definisce:
+- la struttura dati che rappresenta l'insieme degli Stock: Stocks
+- la struttura dati jolie di un singolo Stock: StockSubStruct, a sua volta divisa
+in parte statica che corrisponde ai file xml (StockStaticStruct), e parte dinamica
+le cui variabili possono essere modificate a runtime (StockDynamicStruct)
+- una struttura dati "light" utilizzata nel processo di discovering di nuovi Stocks
+- un errore per le eccezioni di StockDiscoverer
+
+interfacce
+	StocksLauncherInterface - sta tra StockLauncher e StocksMng
+
+		RequestResponse: discover(void)(void)
+
+	StocksDiscovererInterface - credo stia tra StockDiscoverer e StocksMng
+
+		RequestResponse: discover(IndexedStockList)(Stocks)
+		throws StocksDiscovererFault, IOException, FileNotFound
+		input: file list di Stocks già presenti
+		output: struttura dati di tipo Stocks da mergiare con quella
+		presente a runtime
+
+	StockInstanceInterface - sta tra StocksMng ed ogni istanza di Stock
+
+		RequestResponse: start(StockSubStruct)(void)
+		RequestResponse: buyStock(string)(string)
+		RequestResponse: sellStock(string)(string)
+
+	StockToMarketCommunicationInterface - sta tra StocksMng e Market
+
+		RequestResponse: register(string)(string)
+		RequestResponse: addStock(string)(string)
+		RequestResponse: destroyStock(string)(string)
+
+	MarketToStockCommunicationInterface - sta tra Market e StocksMng
+
+		RequestResponse: buyStock(string)(string)
+		RequestResponse: sellStock(string)(string)
+
+*****StocksLauncher.ol*****
+
+Servizio che embedda StocksMng. Nel main fa solo una cosa: invoca l'operazione
+di 'discover' presso StocksMng, dalla quale scaturisce la creazione dinamica
+delle varie istanze di Stock
+
+outputPort StocksMng
+	attraverso la quale invoca 'discover' presso StocksMng
+
+*****StocksDiscoverer.ol *****
+
+Implementa l'operazione 'discover'.
+
+inputPort StocksDiscoverer
+	attraverso la quale espone 'discover' perchè sia invocata da StockMng
+
+operazioni
+	-'discover' TODO
+
+*****StocksMng.ol *****
+
+Servizio embeddato da StocksLauncher. Servizio che embedda StocksDiscoverer.
+Svolge le veci di proxy tra il Market e ciascuno Stock.
+
+inputPort StockMng
+	attraverso la quale espone 'discover' perchè sia invocata da StocksLauncher
+
+outputPort StocksDiscoverer
+	attraverso la quale invoca 'discover' presso StocksDiscoverer
+
+outputPort StockInstance
+	attraverso la quale invoca le operazioni di ognuna delle istanze di Stock
+
+inputPort MarketToStockCommunication
+	attraverso la quale si espone alle richeste del Market (buy, sell, ecc..)
+
+operazioni
+	-'buyStock' Effettua il dynamic binding con la specifica istanza di Stock
+	e invoca 'buy' presso di essa
+	-'sellStock' stub, bozza
+	-'discover' TODO
