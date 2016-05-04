@@ -1,13 +1,15 @@
-include "../config/config.iol"
+include "../config/constants.iol"
 include "file.iol"
-include "../deployment/stockInterface.iol"
-include "../deployment/playerInterface.iol"
+include "../interfaces/stockInterface.iol"
+include "../interfaces/playerInterface.iol"
 
 include "console.iol"
 include "time.iol"
 include "string_utils.iol"
 
-outputPort MarketToStockCommunication { // StocksMng.ol 
+
+
+outputPort MarketToStockCommunication { // utilizzata dal market per inviare richieste agli stock
 	Location: "socket://localhost:8000"
 	Protocol: sodep
 	Interfaces: MarketToStockCommunicationInterface
@@ -24,6 +26,8 @@ inputPort PlayerToMarketCommunication { // utilizzata dai player per inviare ric
 	Protocol: sodep
 	Interfaces: PlayerToMarketCommunicationInterface
 }
+
+
 
 execution { concurrent }
 
@@ -74,7 +78,7 @@ newStock.price
 
 	[ sellStock( stockName )( response ) {
 		if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
-			buyStock@MarketToStockCommunication( stockName )( response );
+			sellStock@MarketToStockCommunication( stockName )( response );
 			println@Console( response )()
 		}
 	} ] { nullProcess }	

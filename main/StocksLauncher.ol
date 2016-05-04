@@ -1,9 +1,11 @@
-include "../config/config.iol"
+include "../config/constants.iol"
 include "file.iol"
-include "../deployment/stockInterface.iol"
+include "../interfaces/stockInterface.iol"
 
 include "console.iol"
 include "string_utils.iol"
+
+
 
 // StocksMng.ol espone una sola operazione al launcher, ovvero quella di discovering, dalla quale scaturisce la creazione
 // dinamica delle varie stock instances
@@ -11,17 +13,22 @@ outputPort StocksMng {
 	Interfaces: StocksLauncherInterface
 }
 
+// embedding del servizio StocksMng (ovvero per accentratore / dispatcher per le varie istanze di stock)
 embedded {
 	Jolie:
 		"../embeddedService/StocksMng.ol" in StocksMng
 }
 
-// In the `sequential` and `concurrent` cases, the behavioural definition inside the main procedure must be an input statement.
-// mentre, nella modalità di default (single), posso inserire richieste a servizi
+
+
 execution { single }
 
 main {
 
+
+
+// todo: capire come gestire i fault
+	
 	install(
 //				default => nullProcess, // catch all exceptions
 				
@@ -34,6 +41,6 @@ main {
 			);
 
 // effettua un check alla ricerca di nuovi stock ogni 30 secondi
-	discoveringInterval = 30000;
+	discoveringInterval = 5000;
 	discover@StocksMng( discoveringInterval )( )
 }

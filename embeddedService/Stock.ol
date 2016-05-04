@@ -1,6 +1,6 @@
-include "../config/config.iol"
+include "../config/constants.iol"
 include "file.iol"
-include "../deployment/stockInterface.iol"
+include "../interfaces/stockInterface.iol"
 
 include "console.iol"
 include "string_utils.iol"
@@ -23,14 +23,7 @@ inputPort StockInstance {
 	Interfaces: StockInstanceInterface, LocalInterface
 }
 
-/*
-Jolie allows OUTPUT ports to be dynamically bound, i.e., their locations and protocols (called binding informations)
-can change at runtime. Changes to the binding information of an output port is local to a behaviour instance: 
-output ports are considered part of the local state of each instance. Dynamic binding is obtained by treating output 
-ports as variables.
-d'accordo, niente dynamic binding sulle input port. Però, per quanto sembra di capire, non si presenta alcuna race condition
-per la scrittura della location sulla output port e quindi per la comunicazione con lo stock.
-*/
+
 
 // lo stock comunica in forma autonoma con il market per richieste in output
 outputPort StockToMarketCommunication {
@@ -54,10 +47,19 @@ execution { concurrent }
 
 main {
 
+
+
 // riceve in input la struttura dati di configurazione del nuovo stock (StockSubStruct)
-	[ start( stockConfig )( response ) {
+	[ start( stockConfig )() {
+
+/*
+		valueToPrettyString@StringUtils( stockConfig )( result );
+		println@Console( result )();
+*/
+
 		getProcessId@Runtime()( processId );
-		println@Console( "ho appena avviato un client stock (" + stockConfig.static.name + "), (" + processId + ")")();
+		println@Console( "start@Stock: ho appena avviato un client stock (" + 
+							stockConfig.static.name + ", processId: " + processId + ")")();
 
 		global.stockConfig << stockConfig;
 
@@ -67,7 +69,7 @@ main {
 		registrationStruct.price = stockConfig.static.info.price;
 		registerStock@StockToMarketCommunication( registrationStruct )( response );
 
-// who I am?
+// who I am? Imposto la location della output port Self per comunicare con "me stesso"
 		getLocalLocation@Runtime()( Self.location );
 
 // posso adesso avviare l'operazione di wasting (deperimento), ovvero un thread parallelo e indipendente (definito
@@ -80,41 +82,46 @@ main {
 		if ( stockConfig.static.info.production.interval > 0 ) {
 			production@Self()
 		}
-
 	} ] { nullProcess }
+
+
 
 	[ buyStock()( response ) {
 
 		getProcessId@Runtime()( processId );
 
 		me -> global.stockConfig;
-		println@Console( "Sono " + me.static.name + " (" + processId + "); il market ha appena richiesto @buyStock" )();
+		println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); il market ha appena richiesto @buyStock" )();
 
 		synchronized( syncToken ) {
 			if ( me.dynamic.availability > 0 ) {
 				me.dynamic.availability--;
-				response = "Sono " + me.static.name + " (" + processId + "); decremento la disponibilità di stock"
+				response = "Sono " + me.static.name + " (processId: " + processId+ "); decremento la disponibilità di stock"
 			} else {
 
 // todo: lanciare un fault
-				response = "Sono " + me.static.name + " (" + processId + "); la disponibilità è terminata"
+				response = "Sono " + me.static.name + " (processId: " + processId+ "); la disponibilità è terminata"
 			}
 		}
 
 	} ] { nullProcess }
+
+
 
 // riflettere: possono presentarsi casistiche per le quali sia necessario sollevare un fault?
 	[ sellStock()( response ) {
 		getProcessId@Runtime()( processId );
 
 		me -> global.stockConfig;
-		println@Console( "Sono " + me.static.name + " (" + processId + "); il market ha appena richiesto @sellStock" )();
+		println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); il market ha appena richiesto @sellStock" )();
 
 		synchronized( syncToken ) {
 			me.dynamic.availability++;
-			response = "Sono " + me.static.name + " (" + processId + "); incremento la disponibilità di stock"
+			response = "Sono " + me.static.name + " (processId: " + processId+ "); incremento la disponibilità di stock"
 		}
 	} ] { nullProcess }
+
+
 
 // OneWay riflessivo; operazione di deperimento di unità dello stock
 	[ wasting() ] {
@@ -123,18 +130,24 @@ main {
 
 		me -> global.stockConfig;
 		me.wasting -> me.static.info.wasting;
-		println@Console( "Sono " + me.static.name + " (" + processId + "); ho appena avviato la procedura di wasting" )();
+		println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); ho appena avviato la procedura di WASTING" )();
 
 		while ( true ) {
 			synchronized( syncToken ) {
-// la quantità residua è sufficiente per effettuare un deperimento				
+// la quantità residua è sufficiente per effettuare un deperimento
 				if ( me.dynamic.availability >= me.wasting.high ) {
 					lowerBound = me.wasting.low;
 					upperBound = me.wasting.high;
-					randGen;
+					randGen; // la procedura imposta la variabile amount
+
+// quantità deperita / quantità totale corrente
+// todo: occhio all'arrotondamento
+					availabilityRate = amount / me.dynamic.availability;
 					me.dynamic.availability -= amount;
 
-					println@Console( "Sono " + me.static.name + " (" + processId + "); WASTING di " + amount + 
+// todo: lancio al market l'informazione sul deperimento (credo sia sufficiente una OneWay)
+
+					println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); WASTING di " + amount + 
 										" (" + me.dynamic.availability + "); interval: " + me.wasting.interval + " secondi" )()
 				}
 			};
@@ -143,22 +156,30 @@ main {
 		}
 	}
 
+
+
 // OneWay riflessivo; operazione di produzione di nuove unità di stock
 	[ production() ] {
 		getProcessId@Runtime()( processId );
 
 		me -> global.stockConfig;
 		me.production -> me.static.info.production;
-		println@Console( "Sono " + me.static.name + " (" + processId + "); ho appena avviato la procedura di production" )();
+		println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); ho appena avviato l'operazione di PRODUCTION" )();
 
 		while ( true ) {
 			synchronized( syncToken ) {
 				lowerBound = me.production.low;
 				upperBound = me.production.high;
-				randGen;
+				randGen; // la procedura imposta la variabile amount
+
+// quantità prodotta / quantità totale corrente
+// todo: occhio all'arrotondamento
+				productionRate = amount / me.dynamic.availability;
 				me.dynamic.availability += amount;
 
-				println@Console( "Sono " + me.static.name + " (" + processId + "); PRODUCTION di " + amount + 
+// todo: lancio al market l'informazione sul deperimento (credo sia sufficiente una OneWay)
+
+				println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); PRODUCTION di " + amount + 
 									" (" + me.dynamic.availability + "); interval: " + me.production.interval + " secondi" )()
 			};
 
@@ -166,23 +187,3 @@ main {
 		}
 	}
 }
-
-
-
-/*
-buyStock
-	synchronized {
-		availability--
-	}
-
-wasting
-	synchronized {
-		availability--
-	}
-
-2 soluzioni
--> semaforo tra buyStock e wasting (rilascio il semaforo solo dopo che ho ricevuto response da market per l'operazione)
--> synchronized su market per l'accesso in scrittura alla struttura dati che contiene prezzo / quantità stock
-
-se è in corso un'operazione di buying, blocco la struttura dati per eventuali wasting in arrivo
-*/

@@ -1,6 +1,6 @@
-include "../config/config.iol"
+include "../config/constants.iol"
 include "file.iol"
-include "../deployment/stockInterface.iol"
+include "../interfaces/stockInterface.iol"
 
 include "console.iol"
 include "string_utils.iol"
@@ -9,15 +9,12 @@ include "xml_utils.iol"
 include "runtime.iol"
 include "time.iol"
 
+
+
 // embedded by StocksLauncher
 inputPort StocksMng {
 	Location: "local"
 	Interfaces: StocksLauncherInterface
-}
-
-// embeds StocksDiscoverer
-outputPort StocksDiscoverer {
-	Interfaces: StocksDiscovererInterface
 }
 
 // comunica con ciascun stock client dinamicamente allocato
@@ -34,41 +31,26 @@ inputPort MarketToStockCommunication {
 	Interfaces: MarketToStockCommunicationInterface
 }
 
-embedded {
-	Jolie:
-		"StocksDiscoverer.ol" in StocksDiscoverer
-}
 
 
-
-// The first statement of the main procedure must be an input if the execution mode is not single
 execution { concurrent }
-// 'concurrent' causes a program behaviour to be instantiated and executed whenever its first input statement can receive
-// a message.
-// In the 'sequential' and 'concurrent' cases, the behavioural definition inside the main procedure must be an input statement.
-// A crucial aspect of behaviour instances is that each instance has its own private state, determining variable scoping.
-// This lifts programmers from worrying about race conditions in most cases.
-
-/*
-init {
-
-// è importante che dynamicStockList, generata dall'operazione discover, sia disponibile a tutti gli altri input
-// statements (occhio, è una variabile condivisa)
-	global.dynamicStockList = ""
-}
-*/
 
 main {
 
-// sulle operazioni buyStock e sellStock sono ricevute chiamate "aggregate" per tutti gli stock client in esecuzione
-// StocksMng svolge le veci di 'proxy' tra il market e ciascun stock
-// (mentre per le chiamate in uscita, ciascun stock è assolutamente indipendente, ovvero dialoga con il market direttamente)
-// il motivo di tali scelte? Sostanzialmente l'assenza del dynamic binding sulle input port che, tradotto in altri termini,
-// non permette la definizione dinamica delle input port sulle singole istanze dei thread stock dinamicamente allocati
+/*
+sulle operazioni buyStock e sellStock sono ricevute chiamate "aggregate" per tutti gli stock client in esecuzione
+StocksMng svolge le veci di 'proxy' tra il market e ciascun stock
+(mentre per le chiamate in uscita, ciascun stock è assolutamente indipendente, ovvero dialoga con il market direttamente)
+il motivo di tali scelte? Sostanzialmente l'assenza del dynamic binding sulle input port che, tradotto in altri termini,
+non permette la definizione dinamica delle input port sulle singole istanze dei thread stock dinamicamente allocati
+*/
 
-// ricorda la composizione della struttura dynamicStockList (su cui è applicabile il dynamic lookup)
-// dynamicStockList.( stockName )[ 0 ].fileName
-// dynamicStockList.( stockName )[ 0 ].location
+/*
+ricorda la composizione della struttura global.dynamicStockList (su cui è applicabile il dynamic lookup)
+utilizzata da tutte le operazioni offerte da StocksMng.ol
+dynamicStockList.( stockName )[ 0 ].fileName
+dynamicStockList.( stockName )[ 0 ].location
+*/
 	[ buyStock( stockName )( response ) {
 
 // dynamic lookup rispetto alla stringa stockName
@@ -85,82 +67,132 @@ main {
 
 	} ] { nullProcess }
 
-	[ sellStock( request )( response ) {
-		response = request
+	[ sellStock( stockName )( response ) {
+
+// dynamic lookup rispetto alla stringa stockName
+		if ( is_defined( global.dynamicStockList.( stockName )[ 0 ] )) {
+// per comunicare con la specifica istanza, imposto a runtime la location della outputPort StockInstance
+			StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
+// posso adesso avviare l'operazione sullo specifico stock
+			sellStock@StockInstance()( response )
+		} else {
+
+// todo: meglio lanciare un fault...
+			response = "lo stockName richiesto non esiste!"
+		}
+
 	} ] { nullProcess }	
 
 
 
-// operazione invocata da StocksLauncher
-	[ discover( interval )( response ) {
+/*
+operazione invocata da StocksLauncher (innesco)
+
+estraggo ciascun file xml dal path indicato ed effettuo 2 verifiche: una sul filename, l'altra sul nome dello stock;
+qualora il filename non sia già presente all'interno della lista degli stock correnti,
+allora posso verificare il nome dello stock in esso contenuto;
+qualora anche il nome non sia già presente, allora posso lanciare lo stock a runtime
+*/
+	[ discover( interval )() {
+
+// todo: creare scope specifici ed effettuare install più dettagliati; 
+// todo: affiancare procedure define per snellire la lettura del codice
+		install(
+					// stock list up to date
+					StocksDiscovererFault => println@Console( stocksDiscovery.StocksDiscovererFault.msg )(),
+
+					IOException => throw( IOException ),
+					FileNotFound => throw( FileNotFound ),
+
+					RuntimeExceptionType => throw( RuntimeExceptionType )
+				);
 
 		while ( true ) {
 
-			scope ( stocksDiscovery ) {
-				install(
-							// stock list up to date
-							StocksDiscovererFault => println@Console( stocksDiscovery.StocksDiscovererFault.msg )(),
+// estraggo i files di configurazione degli stock dal basepath definito in ../config/constants.iol
+			listRequest.directory = CONFIG_PATH_STOCKS;
+			listRequest.regex = ".+\\.xml";
+			listRequest.order.byname = true;
+			list@File( listRequest )( listResult );
 
-							IOException => throw( IOException ),
-							FileNotFound => throw( FileNotFound )
-						);
 
-// trasformo la dynamicStockList in una indexedStockList (ad uso e consumo di StocksDiscoverer)
-// per maggiori dettagli si veda la struttura dati definita nell'interfaccia
-				k = 0;
+
+// ciclo su ciascun file all'interno della directory (qualora ve ne siano)
+			for ( k = 0, k < #listResult.result, k++ ) {
+				currentFile = listResult.result[ k ];
+
+				println@Console( "StocksMng@discover: analizzo " + currentFile)();
+
+// i filename presenti si riferiscono a stock già in esecuzione? Quindi già presenti nella struct dynamicStockList?
+				found = false;
 				foreach ( stockName : global.dynamicStockList ) {
-					indexedStockList.filename[ k ] = global.dynamicStockList.( stockName )[ 0 ].filename;
-					indexedStockList.name[ k ] = stockName;
-//					println@Console( indexedStockList[ j ].filename + " " + indexedStockList[ j ].name )();
-					k++
+					if ( currentFile == global.dynamicStockList.( stockName )[ 0 ].filename ) {
+						found = true
+					}
 				};
 
-				valueToPrettyString@StringUtils( indexedStockList )( result );
-				println@Console( result )();
+// qualora il filename in esame non abbia trovato alcuna corrispondenza, posso allora procedere alle ulteriori verifiche
+				if ( found == false ) {
 
-// avvio la procedura di ricerca ed estrazione di nuovi stock
-				discover@StocksDiscoverer( indexedStockList )( newStocks )
-			};
+					println@Console( "StocksMng@discover: il file corrente (" + currentFile + ") non è presente in dynamicStockList")();
 
-// il seguente scope si occupa di lanciare nuove istanze del servizio Stock.ol in relazione ai nuovi files xml inseriti
-			scope ( stocksLauncher ) {
-				install(
-							RuntimeExceptionType => throw( RuntimeExceptionType )
-						);
+// procedo con la lettura del file xml
+					filePath = CONFIG_PATH_STOCKS + currentFile;
+					exists@File( filePath )( fileExists );
 
-// sono stati individuati nuovi files xml (cioè nuovi stock); è richiesto l'avvio di nuove istanze
-				if ( #newStocks.stock > 0 ) {
+					if ( fileExists ) {
 
-					embedInfo.type = "Jolie";
-					embedInfo.filepath = "Stock.ol";
+						println@Console( "StocksMng@discover: avvio la lettura dell'xml da " + filePath )();
 
-					for ( k = 0, k < #newStocks.stock, k++ ) {
-						stockName = newStocks.stock[ k ].static.name;
-						stockFilename = newStocks.stock[ k ].static.filename;
-						println@Console( "\nStocksMng@stocksLauncher scope: starting new stock instance (" + 
-											stockName + " / " + stockFilename + ")" )();
+/*
+todo: catch typeMismatch fault
+l'operazione xmlToValue può lanciare un TypeMismatchfault qualora l'attributo _jolie_type non sia congruo con il valore
+indicato; ricorda che non è incluso il nodo radice <stock>
+*/
+						fileInfo.filename = filePath;
+						readFile@File( fileInfo )( xmlTree );
+						xmlTree.options.charset = "UTF-8";
+						xmlTree.options.schemaLanguage = "it";
+						xmlToValue@XmlUtils( xmlTree )( xmlStock );
+									
+// il nome dello stock è già presente nella lista? Verifico grazie ad un dynamic lookup
+						if ( ! is_defined( global.dynamicStockList.( xmlStock.name )[ 0 ] )) {
 
+// abbiamo a che fare con un nuovo stock, dovremo quindi occuparci di lanciare una nuova istanza
+// intanto compongo la struttura dati che la caratterizzerà
+							newStock.static << xmlStock;
+							newStock.static.filename = currentFile;
+							newStock.dynamic.availability = xmlStock.info.availability;
+							stockName -> newStock.static.name;
+
+							println@Console( "StocksMng@discover: trovato un nuovo stock " + stockName )();
+
+
+
+							println@Console( "StocksMng@discover: avvia una nuova istanza di stock (" + 
+												stockName + " / " + currentFile + ")" )();
 // lancia una nuova istanza dello stock
-// loadEmbeddedService returns the (local) location of the embedded service
-						loadEmbeddedService@Runtime( embedInfo )( StockInstance.location );
+							embedInfo.type = "Jolie";
+							embedInfo.filepath = "Stock.ol";
 
-// qualora l'istruzione precedente non abbia generato alcun fault
+// reminder: loadEmbeddedService returns the (local) location of the embedded service
+							loadEmbeddedService@Runtime( embedInfo )( StockInstance.location );
+
+// qualora l'istruzione precedente non abbia generato alcun fault (RuntimeExceptionType)
 // aggiorno la dynamicStockList; il parametro location è di vitale importanza per la corretta identificazione delle istanze
-						global.dynamicStockList.( stockName )[ 0 ].location = StockInstance.location;
-						global.dynamicStockList.( stockName )[ 0 ].filename = stockFilename;
+							global.dynamicStockList.( stockName)[ 0 ].filename = currentFile;
+							global.dynamicStockList.( stockName )[ 0 ].location = StockInstance.location;
 
 // avvia la registrazione dello stock sul market
-// potrebbe essere una OneWay? beh, in realtà attendo la risposta della procesura di registrazione sul market
-						start@StockInstance( newStocks.stock[ k ] )( response )
+// potrebbe essere una OneWay? Forse è più prundente attendere la risposta della procedura di registrazione sul market?
+							start@StockInstance( newStock )( response )
+						}
 					}
 				}
 			};
 
-			undef ( newStocks );
 			sleep@Time( interval )()
-		}; // while
 
-		response = ""
-
+		}
 	} ] { nullProcess }
 }

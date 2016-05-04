@@ -1,5 +1,5 @@
-include "../config/config.iol"
-include "../deployment/playerInterface.iol"
+include "../config/constants.iol"
+include "../interfaces/playerInterface.iol"
 
 include "console.iol"
 include "time.iol"
