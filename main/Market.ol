@@ -10,21 +10,21 @@ include "string_utils.iol"
 
 
 outputPort MarketToStockCommunication { // utilizzata dal market per inviare richieste agli stock
-	Location: "socket://localhost:8000"
-	Protocol: sodep
-	Interfaces: MarketToStockCommunicationInterface
+    Location: "socket://localhost:8000"
+    Protocol: sodep
+    Interfaces: MarketToStockCommunicationInterface
 }
 
 inputPort StockToMarketCommunication { // utilizzata dagli stock per inviare richieste al market
-	Location: "socket://localhost:8001"
-	Protocol: sodep
-	Interfaces: StockToMarketCommunicationInterface
+    Location: "socket://localhost:8001"
+    Protocol: sodep
+    Interfaces: StockToMarketCommunicationInterface
 }
 
 inputPort PlayerToMarketCommunication { // utilizzata dai player per inviare richieste al market
-	Location: "socket://localhost:8002"
-	Protocol: sodep
-	Interfaces: PlayerToMarketCommunicationInterface
+    Location: "socket://localhost:8002"
+    Protocol: sodep
+    Interfaces: PlayerToMarketCommunicationInterface
 }
 
 
@@ -47,39 +47,41 @@ newStock.price
 */
 
 // operazione esposta agli stocks sulla porta 8001, definita nell'interfaccia StockToMarketCommunicationInterface
-	[ registerStock( newStock )( response ) {
+    [ registerStock( newStock )( response ) {
 
 // dynamic lookup rispetto alla stringa newStock.name
-		if ( ! is_defined( global.registeredStocks.( newStock.name )[ 0 ] )) {
-			global.registeredStocks.( newStock.name )[ 0 ].price = newStock.price;
+        if ( ! is_defined( global.registeredStocks.( newStock.name )[ 0 ] )) {
+            global.registeredStocks.( newStock.name )[ 0 ].price = newStock.price;
 
-			valueToPrettyString@StringUtils( newStock )( result );
-			println@Console( "\nMarket@registerStock, newStock:" + result )()
+            valueToPrettyString@StringUtils( newStock )( result );
+            println@Console( "\nMarket@registerStock, newStock:" + result )()
 
-		};
-// else	
+        };
+// else    
 // todo: lanciare un fault, uno stock con lo stesso nome è già registrato al market
 // (caso praticamente impossibile visto che StocksDiscoverer presta particolare attenzione al parsing dei nomi dei nuovi stock)
 
-		response = "done"
+        response = "done"
 
-	} ] { nullProcess }
+    } ] { nullProcess }
 
 
 
 // operazione esposta ai players sulla porta 8003, definita nell'interfaccia PlayerToMarketCommunicationInterface
 // è tutto assolutamente da implementare!
-	[ buyStock( stockName )( response ) {
-		if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
-			buyStock@MarketToStockCommunication( stockName )( response );
-			println@Console( response )()
-		}
-	} ] { nullProcess }
+    [ buyStock( stockName )( response ) {
+        if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
+            buyStock@MarketToStockCommunication( stockName )( response );
+            println@Console( response )()
+        }
+    } ] { nullProcess }
 
-	[ sellStock( stockName )( response ) {
-		if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
-			sellStock@MarketToStockCommunication( stockName )( response );
-			println@Console( response )()
-		}
-	} ] { nullProcess }	
+
+
+    [ sellStock( stockName )( response ) {
+        if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
+            sellStock@MarketToStockCommunication( stockName )( response );
+            println@Console( response )()
+        }
+    } ] { nullProcess }    
 }

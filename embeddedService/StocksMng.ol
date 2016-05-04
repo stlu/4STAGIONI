@@ -13,22 +13,22 @@ include "time.iol"
 
 // embedded by StocksLauncher
 inputPort StocksMng {
-	Location: "local"
-	Interfaces: StocksLauncherInterface
+    Location: "local"
+    Interfaces: StocksLauncherInterface
 }
 
 // comunica con ciascun stock client dinamicamente allocato
 // embeds n stock instances
 outputPort StockInstance {
-	Interfaces: StockInstanceInterface
+    Interfaces: StockInstanceInterface
 }
 
 // raccoglie le informazioni provenienti dal mercato rispetto alle operazioni di buy e sell e le inoltra alla specifica
 // istanza di stock
 inputPort MarketToStockCommunication {
-	Location: "socket://localhost:8000"
-	Protocol: sodep
-	Interfaces: MarketToStockCommunicationInterface
+    Location: "socket://localhost:8000"
+    Protocol: sodep
+    Interfaces: MarketToStockCommunicationInterface
 }
 
 
@@ -51,37 +51,37 @@ utilizzata da tutte le operazioni offerte da StocksMng.ol
 dynamicStockList.( stockName )[ 0 ].fileName
 dynamicStockList.( stockName )[ 0 ].location
 */
-	[ buyStock( stockName )( response ) {
+    [ buyStock( stockName )( response ) {
 
 // dynamic lookup rispetto alla stringa stockName
-		if ( is_defined( global.dynamicStockList.( stockName )[ 0 ] )) {
+        if ( is_defined( global.dynamicStockList.( stockName )[ 0 ] )) {
 // per comunicare con la specifica istanza, imposto a runtime la location della outputPort StockInstance
-			StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
+            StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
 // posso adesso avviare l'operazione sullo specifico stock
-			buyStock@StockInstance()( response )
-		} else {
+            buyStock@StockInstance()( response )
+        } else {
 
 // todo: meglio lanciare un fault...
-			response = "lo stockName richiesto non esiste!"
-		}
+            response = "lo stockName richiesto non esiste!"
+        }
 
-	} ] { nullProcess }
+    } ] { nullProcess }
 
-	[ sellStock( stockName )( response ) {
+    [ sellStock( stockName )( response ) {
 
 // dynamic lookup rispetto alla stringa stockName
-		if ( is_defined( global.dynamicStockList.( stockName )[ 0 ] )) {
+        if ( is_defined( global.dynamicStockList.( stockName )[ 0 ] )) {
 // per comunicare con la specifica istanza, imposto a runtime la location della outputPort StockInstance
-			StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
+            StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
 // posso adesso avviare l'operazione sullo specifico stock
-			sellStock@StockInstance()( response )
-		} else {
+            sellStock@StockInstance()( response )
+        } else {
 
 // todo: meglio lanciare un fault...
-			response = "lo stockName richiesto non esiste!"
-		}
+            response = "lo stockName richiesto non esiste!"
+        }
 
-	} ] { nullProcess }	
+    } ] { nullProcess }    
 
 
 
@@ -93,106 +93,106 @@ qualora il filename non sia già presente all'interno della lista degli stock co
 allora posso verificare il nome dello stock in esso contenuto;
 qualora anche il nome non sia già presente, allora posso lanciare lo stock a runtime
 */
-	[ discover( interval )() {
+    [ discover( interval )() {
 
 // todo: creare scope specifici ed effettuare install più dettagliati; 
 // todo: affiancare procedure define per snellire la lettura del codice
-		install(
-					// stock list up to date
-					StocksDiscovererFault => println@Console( stocksDiscovery.StocksDiscovererFault.msg )(),
+        install(
+                    // stock list up to date
+                    StocksDiscovererFault => println@Console( stocksDiscovery.StocksDiscovererFault.msg )(),
 
-					IOException => throw( IOException ),
-					FileNotFound => throw( FileNotFound ),
+                    IOException => throw( IOException ),
+                    FileNotFound => throw( FileNotFound ),
 
-					RuntimeExceptionType => throw( RuntimeExceptionType )
-				);
+                    RuntimeExceptionType => throw( RuntimeExceptionType )
+                );
 
-		while ( true ) {
+        while ( true ) {
 
 // estraggo i files di configurazione degli stock dal basepath definito in ../config/constants.iol
-			listRequest.directory = CONFIG_PATH_STOCKS;
-			listRequest.regex = ".+\\.xml";
-			listRequest.order.byname = true;
-			list@File( listRequest )( listResult );
+            listRequest.directory = CONFIG_PATH_STOCKS;
+            listRequest.regex = ".+\\.xml";
+            listRequest.order.byname = true;
+            list@File( listRequest )( listResult );
 
 
 
 // ciclo su ciascun file all'interno della directory (qualora ve ne siano)
-			for ( k = 0, k < #listResult.result, k++ ) {
-				currentFile = listResult.result[ k ];
+            for ( k = 0, k < #listResult.result, k++ ) {
+                currentFile = listResult.result[ k ];
 
-				println@Console( "StocksMng@discover: analizzo " + currentFile)();
+                println@Console( "StocksMng@discover: analizzo " + currentFile)();
 
 // i filename presenti si riferiscono a stock già in esecuzione? Quindi già presenti nella struct dynamicStockList?
-				found = false;
-				foreach ( stockName : global.dynamicStockList ) {
-					if ( currentFile == global.dynamicStockList.( stockName )[ 0 ].filename ) {
-						found = true
-					}
-				};
+                found = false;
+                foreach ( stockName : global.dynamicStockList ) {
+                    if ( currentFile == global.dynamicStockList.( stockName )[ 0 ].filename ) {
+                        found = true
+                    }
+                };
 
 // qualora il filename in esame non abbia trovato alcuna corrispondenza, posso allora procedere alle ulteriori verifiche
-				if ( found == false ) {
+                if ( found == false ) {
 
-					println@Console( "StocksMng@discover: il file corrente (" + currentFile + ") non è presente in dynamicStockList")();
+                    println@Console( "StocksMng@discover: il file corrente (" + currentFile + ") non è presente in dynamicStockList")();
 
 // procedo con la lettura del file xml
-					filePath = CONFIG_PATH_STOCKS + currentFile;
-					exists@File( filePath )( fileExists );
+                    filePath = CONFIG_PATH_STOCKS + currentFile;
+                    exists@File( filePath )( fileExists );
 
-					if ( fileExists ) {
+                    if ( fileExists ) {
 
-						println@Console( "StocksMng@discover: avvio la lettura dell'xml da " + filePath )();
+                        println@Console( "StocksMng@discover: avvio la lettura dell'xml da " + filePath )();
 
 /*
 todo: catch typeMismatch fault
 l'operazione xmlToValue può lanciare un TypeMismatchfault qualora l'attributo _jolie_type non sia congruo con il valore
 indicato; ricorda che non è incluso il nodo radice <stock>
 */
-						fileInfo.filename = filePath;
-						readFile@File( fileInfo )( xmlTree );
-						xmlTree.options.charset = "UTF-8";
-						xmlTree.options.schemaLanguage = "it";
-						xmlToValue@XmlUtils( xmlTree )( xmlStock );
-									
+                        fileInfo.filename = filePath;
+                        readFile@File( fileInfo )( xmlTree );
+                        xmlTree.options.charset = "UTF-8";
+                        xmlTree.options.schemaLanguage = "it";
+                        xmlToValue@XmlUtils( xmlTree )( xmlStock );
+                                    
 // il nome dello stock è già presente nella lista? Verifico grazie ad un dynamic lookup
-						if ( ! is_defined( global.dynamicStockList.( xmlStock.name )[ 0 ] )) {
+                        if ( ! is_defined( global.dynamicStockList.( xmlStock.name )[ 0 ] )) {
 
 // abbiamo a che fare con un nuovo stock, dovremo quindi occuparci di lanciare una nuova istanza
 // intanto compongo la struttura dati che la caratterizzerà
-							newStock.static << xmlStock;
-							newStock.static.filename = currentFile;
-							newStock.dynamic.availability = xmlStock.info.availability;
-							stockName -> newStock.static.name;
+                            newStock.static << xmlStock;
+                            newStock.static.filename = currentFile;
+                            newStock.dynamic.availability = xmlStock.info.availability;
+                            stockName -> newStock.static.name;
 
-							println@Console( "StocksMng@discover: trovato un nuovo stock " + stockName )();
+                            println@Console( "StocksMng@discover: trovato un nuovo stock " + stockName )();
 
 
 
-							println@Console( "StocksMng@discover: avvia una nuova istanza di stock (" + 
-												stockName + " / " + currentFile + ")" )();
+                            println@Console( "StocksMng@discover: avvia una nuova istanza di stock (" + 
+                                                stockName + " / " + currentFile + ")" )();
 // lancia una nuova istanza dello stock
-							embedInfo.type = "Jolie";
-							embedInfo.filepath = "Stock.ol";
+                            embedInfo.type = "Jolie";
+                            embedInfo.filepath = "Stock.ol";
 
 // reminder: loadEmbeddedService returns the (local) location of the embedded service
-							loadEmbeddedService@Runtime( embedInfo )( StockInstance.location );
+                            loadEmbeddedService@Runtime( embedInfo )( StockInstance.location );
 
 // qualora l'istruzione precedente non abbia generato alcun fault (RuntimeExceptionType)
 // aggiorno la dynamicStockList; il parametro location è di vitale importanza per la corretta identificazione delle istanze
-							global.dynamicStockList.( stockName)[ 0 ].filename = currentFile;
-							global.dynamicStockList.( stockName )[ 0 ].location = StockInstance.location;
+                            global.dynamicStockList.( stockName)[ 0 ].filename = currentFile;
+                            global.dynamicStockList.( stockName )[ 0 ].location = StockInstance.location;
 
 // avvia la registrazione dello stock sul market
 // potrebbe essere una OneWay? Forse è più prundente attendere la risposta della procedura di registrazione sul market?
-							start@StockInstance( newStock )( response )
-						}
-					}
-				}
-			};
+                            start@StockInstance( newStock )( response )
+                        }
+                    }
+                }
+            };
 
-			sleep@Time( interval )()
+            sleep@Time( interval )()
 
-		}
-	} ] { nullProcess }
+        }
+    } ] { nullProcess }
 }
