@@ -31,7 +31,6 @@ type StockStaticStruct: void {
 // informazioni a runtime dello specifico stock
 type StockDynamicStruct: void {
 	.availability: int
-//	.price: double
 }
 
 // struttura dati "light" utilizzata nel processo di discovering di nuovi stock (fornita da StocksMng a StocksDiscoverer)
@@ -45,9 +44,14 @@ type StocksDiscovererFaultType: void {
 	.msg: string
 }
 
-type StockToMarketRegistrationStruct: void {
+type StockRegistrationStruct: void {
 	.name: string
 	.price: double
+}
+
+type StockVariationStruct: void {
+	.name: string
+	.variation: double
 }
 
 // connette StocksLauncher e StocksMng
@@ -73,9 +77,9 @@ interface StockInstanceInterface {
 // from stocks to market
 interface StockToMarketCommunicationInterface {
 // registrazione dello stock sul market
-	RequestResponse: registerStock( StockToMarketRegistrationStruct )( string )
-	RequestResponse: addStock( string )( string )
-	RequestResponse: destroyStock( string )( string )
+	RequestResponse: registerStock( StockRegistrationStruct )( string )
+	RequestResponse: addStock( StockRegistrationStruct )( string )
+	RequestResponse: destroyStock( StockRegistrationStruct )( string )
 }
 
 // from market to stocks
