@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<stock _jolie_type="void">
-	<name _jolie_type="string">Player1</name>
-	<info _jolie_type="void">
-		<availability _jolie_type="int">0</availability>
-		<strategy _jolie_type="int">0</strategy>
-	</info>
-</stock>
