@@ -107,8 +107,8 @@ interfacce
 	StockToMarketCommunicationInterface - sta tra StocksMng e Market
 
 		RequestResponse: register(string)(string)
-		RequestResponse: addStock(string)(string)
-		RequestResponse: destroyStock(string)(string)
+		OneWay: addStock(StockRegistrationStruct)
+		OneWay: destroyStock(StockRegistrationStruct)
 
 	MarketToStockCommunicationInterface - sta tra Market e StocksMng
 

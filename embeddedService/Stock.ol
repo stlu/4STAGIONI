@@ -9,9 +9,9 @@ include "time.iol"
 include "math.iol"
 
 
-    
-// le seguenti definizioni di interfaccia e outputPort consento un'invocazione "riflessiva" 
-interface LocalInterface { 
+
+// le seguenti definizioni di interfaccia e outputPort consento un'invocazione "riflessiva"
+interface LocalInterface {
     OneWay: wasting( void ) // deperimento
     OneWay: production( void ) // produzione
 }
@@ -37,7 +37,7 @@ outputPort StockToMarketCommunication {
 define randGen {
 // Returns a random number d such that 0.0 <= d < 1.0.
     random@Math()( rand );
-// genera un valore random, estremi inclusi    
+// genera un valore random, estremi inclusi
     amount = int(rand * (upperBound - lowerBound + 1) + lowerBound)
 }
 
@@ -58,7 +58,7 @@ main {
 */
 
         getProcessId@Runtime()( processId );
-        println@Console( "start@Stock: ho appena avviato un client stock (" + 
+        println@Console( "start@Stock: ho appena avviato un client stock (" +
                             stockConfig.static.name + ", processId: " + processId + ")")();
 
         global.stockConfig << stockConfig;
@@ -84,7 +84,7 @@ main {
         }
     } ] { nullProcess }
 
-    
+
 
     [ buyStock()( response ) {
 
@@ -141,16 +141,19 @@ main {
                     randGen; // la procedura imposta la variabile amount
 
 // quantità deperita / quantità totale corrente
-// todo: occhio all'arrotondamento
-                    availabilityRate = amount / me.dynamic.availability;
+// todo: occhio all'arrotondamento (lo ho messo % per problemi matematici)
+                    availabilityRate = amount*100 / me.dynamic.availability;
                     me.dynamic.availability -= amount;
-
+                    println@Console("ciaooooooo io sono:  "+ me.static.name + "e ce stato un waste del: " + availabilityRate+ "%")();
 // todo: lancio al market l'informazione sul deperimento (credo sia sufficiente una OneWay)
-
-                    println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); WASTING di " + amount + 
+                    StockRegistrationStruct.name = me.static.name;
+                    StockRegistrationStruct.price = availabilityRate;
+                    destroyStock@StockToMarketCommunication(StockRegistrationStruct);
+                    println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); WASTING di " + amount +
                                         " (" + me.dynamic.availability + "); interval: " + me.wasting.interval + " secondi" )()
                 }
             };
+
 
             sleep@Time( me.wasting.interval * 1000 )()
         }
@@ -173,13 +176,16 @@ main {
                 randGen; // la procedura imposta la variabile amount
 
 // quantità prodotta / quantità totale corrente
-// todo: occhio all'arrotondamento
-                productionRate = amount / me.dynamic.availability;
+// todo: occhio all'arrotondamento (sempre % per evitare errore)
+                productionRate = amount*100 / me.dynamic.availability;
                 me.dynamic.availability += amount;
+                println@Console("newssss io sono:  "+ me.static.name + "e ce stata un incremento del: " + productionRate+ "%")();
 
 // todo: lancio al market l'informazione sul deperimento (credo sia sufficiente una OneWay)
-
-                println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); PRODUCTION di " + amount + 
+                StockRegistrationStruct.name = me.static.name;
+                StockRegistrationStruct.price = productionRate;
+                addStock@StockToMarketCommunication(StockRegistrationStruct);
+                println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); PRODUCTION di " + amount +
                                     " (" + me.dynamic.availability + "); interval: " + me.production.interval + " secondi" )()
             };
 

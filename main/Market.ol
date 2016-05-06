@@ -3,6 +3,7 @@ include "file.iol"
 include "../interfaces/stockInterface.iol"
 include "../interfaces/playerInterface.iol"
 
+
 include "console.iol"
 include "time.iol"
 include "string_utils.iol"
@@ -77,7 +78,6 @@ newStock.price
     } ] { nullProcess }
 
 
-
     [ sellStock( stockName )( response ) {
         if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
             sellStock@MarketToStockCommunication( stockName )( response );
@@ -92,4 +92,20 @@ newStock.price
                 i=i+1
                 }
     } ] { nullProcess }
+
+    [ destroyStock( var )] {
+            println@Console(  "diminuto il prezzo del: "+ var.name +" del " + var.price + "% = " + global.registeredStocks.(var.name)[ 0 ].price)();
+            global.registeredStocks.(var.name)[ 0 ].price -=(global.registeredStocks.(var.name)[ 0 ].price*var.price)/100;
+            println@Console( "agggiornatooooooooooo   "+ global.registeredStocks.(var.name)[ 0 ].price )()
+
+     }
+
+
+     [ addStock( var )] {
+             println@Console(  "aumentatoooooo il prezzo del: "+ var.name +" del " + var.price + "% = " + global.registeredStocks.(var.name)[ 0 ].price)();
+             global.registeredStocks.(var.name)[ 0 ].price +=(global.registeredStocks.(var.name)[ 0 ].price*var.price)/100;
+             println@Console( "alllelujaaaaaa   "+ global.registeredStocks.(var.name)[ 0 ].price )()
+
+      }
+
 }

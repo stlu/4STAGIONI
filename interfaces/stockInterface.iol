@@ -70,8 +70,8 @@ interface StockInstanceInterface {
 // from stocks to market
 interface StockToMarketCommunicationInterface {
     RequestResponse: registerStock( StockRegistrationStruct )( string )
-    RequestResponse: addStock( StockRegistrationStruct )( string )
-    RequestResponse: destroyStock( StockRegistrationStruct )( string )
+    OneWay: addStock( StockRegistrationStruct )
+    OneWay:destroyStock( StockRegistrationStruct )
 }
 
 // from market to stocks (passando per StocksMng.ol)
