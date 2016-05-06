@@ -81,7 +81,7 @@ dynamicStockList.( stockName )[ 0 ].location
             response = "lo stockName richiesto non esiste!"
         }
 
-    } ] { nullProcess }    
+    } ] { nullProcess }
 
 
 
@@ -95,7 +95,7 @@ qualora anche il nome non sia già presente, allora posso lanciare lo stock a ru
 */
     [ discover( interval )() {
 
-// todo: creare scope specifici ed effettuare install più dettagliati; 
+// todo: creare scope specifici ed effettuare install più dettagliati;
 // todo: affiancare procedure define per snellire la lettura del codice
         install(
                     // stock list up to date
@@ -154,7 +154,7 @@ indicato; ricorda che non è incluso il nodo radice <stock>
                         xmlTree.options.charset = "UTF-8";
                         xmlTree.options.schemaLanguage = "it";
                         xmlToValue@XmlUtils( xmlTree )( xmlStock );
-                                    
+
 // il nome dello stock è già presente nella lista? Verifico grazie ad un dynamic lookup
                         if ( ! is_defined( global.dynamicStockList.( xmlStock.name )[ 0 ] )) {
 
@@ -169,7 +169,7 @@ indicato; ricorda che non è incluso il nodo radice <stock>
 
 
 
-                            println@Console( "StocksMng@discover: avvia una nuova istanza di stock (" + 
+                            println@Console( "StocksMng@discover: avvia una nuova istanza di stock (" +
                                                 stockName + " / " + currentFile + ")" )();
 // lancia una nuova istanza dello stock
                             embedInfo.type = "Jolie";

@@ -35,7 +35,7 @@ main {
 
 /*
 direttamente dalle specifiche del progetto
-"registrarsi presso il Market. Gli Stocks si registrano presso il Market col proprio nome (e.g., "Oro", "Grano", "Petrolio") 
+"registrarsi presso il Market. Gli Stocks si registrano presso il Market col proprio nome (e.g., "Oro", "Grano", "Petrolio")
 e il proprio valore totale iniziale."
 
 ricorda la composizione della struttura registeredStocks (su cui è applicabile il dynamic lookup)
@@ -52,12 +52,12 @@ newStock.price
 // dynamic lookup rispetto alla stringa newStock.name
         if ( ! is_defined( global.registeredStocks.( newStock.name )[ 0 ] )) {
             global.registeredStocks.( newStock.name )[ 0 ].price = newStock.price;
-
+            global.registeredStocks.( newStock.name )[ 0 ].name = newStock.name;
             valueToPrettyString@StringUtils( newStock )( result );
             println@Console( "\nMarket@registerStock, newStock:" + result )()
 
         };
-// else    
+// else
 // todo: lanciare un fault, uno stock con lo stesso nome è già registrato al market
 // (caso praticamente impossibile visto che StocksDiscoverer presta particolare attenzione al parsing dei nomi dei nuovi stock)
 
@@ -83,5 +83,13 @@ newStock.price
             sellStock@MarketToStockCommunication( stockName )( response );
             println@Console( response )()
         }
-    } ] { nullProcess }    
+    } ] { nullProcess }
+
+    [ infoStockList( info )( responseInfo ) {
+              i=0;
+              foreach ( stockName : global.registeredStocks ) {
+                responseInfo.name[i]=string( global.registeredStocks.(stockName)[ 0 ].name);
+                i=i+1
+                }
+    } ] { nullProcess }
 }

@@ -2,6 +2,7 @@ type Stocks: void {
     .stock[0,*]: StockSubStruct
 }
 
+
 type StockSubStruct: void {
     .static: StockStaticStruct
     .dynamic: StockDynamicStruct
@@ -45,6 +46,9 @@ type StockVariationStruct: void {
     .name: string
     .variation: double
 }
+
+
+
 
 // connette StocksLauncher e StocksMng
 interface StocksLauncherInterface {
