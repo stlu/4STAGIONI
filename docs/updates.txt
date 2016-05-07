@@ -1,0 +1,9 @@
+2016_05_07 Fausto
+-Definita costante Player_Name nel Player, la costante è pensata per essere
+    overridata con -C quando viene lanciato Player.ol
+-Definita operazione registerPlayer nel Market, il market crea l'account e
+    notifica il Player con lo stato del suo account
+-Modificato behaviour del Player, aggiunte come prime operazioni la registazione
+    e il salvataggio del suo status
+-Create strutture dati apposite in playerInterface.iol
+-Creato questo txt perchè i commit non mi soddisfano = )

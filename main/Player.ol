@@ -3,7 +3,7 @@ include "../interfaces/playerInterface.iol"
 
 include "console.iol"
 include "time.iol"
-
+include "string_utils.iol"
 
 
 outputPort PlayerToMarketCommunication {
@@ -12,11 +12,27 @@ outputPort PlayerToMarketCommunication {
     Interfaces: PlayerToMarketCommunicationInterface
 }
 
-
+/*
+ * Il valore della costante viene sovrascritto lanciando Player.ol con:
+ *
+ *      jolie -C Player_Name=\"Johnny\" Player.ol
+ */
+constants {
+    Player_Name = "Default Player"
+}
 
 execution { single }
 
 main {
+/*
+ * La prima cosa che un Player fa appena viene al mondo è registrarsi presso il
+ * Market, il Market gli risponde con una struttura dati che riflette il suo
+ * account, e che contiene quindi nome, stock posseduti e relative quantità,
+ * denaro disponibile. Il player se la salva in 'status'.
+ */
+    registerPlayer@PlayerToMarketCommunication(Player_Name)(newStatus);
+    status << newStatus;
+
     while ( true ) {
         buyStock@PlayerToMarketCommunication( "Oro" )( response ) |
         sellStock@PlayerToMarketCommunication( "Oro" )( response ) |

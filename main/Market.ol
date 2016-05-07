@@ -66,7 +66,38 @@ newStock.price
 
     } ] { nullProcess }
 
-
+/*
+* Operazione registerPlayer dell'interfaccia playerInterface
+* porta 8002 | Client: Player | Server: Market
+*
+* Da notare che differentemente da java dove strutture dati visibili in ogni
+* parte del file (globali) sono definite all'inizio e ben in evidenza, in
+* jolie la variabile globale Accounts (sarebbe 'di istanza' in java) non è
+* dichiarata da nessuna parte, viene semplicemente creata quando arriva il
+* primo player.
+*/
+    //Richiesta in entrata dal Player
+    [ registerPlayer (incomingPlayer)(newAccount) {
+        //Caso in cui il Player è nuovo
+        if ( ! is_defined( global.accounts.(incomingPlayer) )) {
+            with(global.accounts.(incomingPlayer)) {
+                .name = incomingPlayer;
+                with(.ownedStock) {
+                    .name = "";
+                    .quantity = -1
+                };
+                .liquidity = 100
+            };
+            newAccount << global.accounts.(incomingPlayer)
+        //Caso in cui il player fosse già presente, non dovrebbe
+        //verificarsi
+        }/*else {
+            TODO ?
+        }*/
+    } ] {
+    println@Console( "\nregisterPlayer@Market, incomingPlayer: "
+        + incomingPlayer )()
+    }
 
 // operazione esposta ai players sulla porta 8003, definita nell'interfaccia PlayerToMarketCommunicationInterface
 // è tutto assolutamente da implementare!
