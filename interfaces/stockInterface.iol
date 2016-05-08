@@ -62,21 +62,23 @@ interface StockInstanceInterface {
 // dovrebbe propagare la risposta dell'operazione registerStock sul market?
     RequestResponse: start( StockSubStruct )( void )
 
-    RequestResponse: buyStock( void )( string )
-    RequestResponse: sellStock( void )( string )
+    RequestResponse: buyStock( void )( string ) throws StockUnknownException
+    RequestResponse: sellStock( void )( string ) throws StockUnknownException
     RequestResponse:infoStockAvaliability( void )( double )
 }
 
 // from stocks to market
 interface StockToMarketCommunicationInterface {
-    RequestResponse: registerStock( StockRegistrationStruct )( string )
+    RequestResponse: registerStock( StockRegistrationStruct )( string ) throws StockDuplicateException,
+                                                                               IOException
+
     OneWay: addStock( StockVariationStruct )
     OneWay: destroyStock( StockVariationStruct )
 }
 
 // from market to stocks (passando per StocksMng.ol)
 interface MarketToStockCommunicationInterface {
-    RequestResponse: buyStock( string )( string )
-    RequestResponse: sellStock( string )( string )
+    RequestResponse: buyStock( string )( string ) throws StockUnknownException
+    RequestResponse: sellStock( string )( string ) throws StockUnknownException
     RequestResponse:infoStockAvaliability( string )( double )
 }

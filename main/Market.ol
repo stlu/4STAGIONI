@@ -2,7 +2,7 @@ include "../config/constants.iol"
 include "file.iol"
 include "../interfaces/stockInterface.iol"
 include "../interfaces/playerInterface.iol"
-
+include "../interfaces/marketInterface.iol"
 
 include "console.iol"
 include "time.iol"
@@ -20,18 +20,22 @@ outputPort MarketToStockCommunication { // utilizzata dal market per inviare ric
 inputPort StockToMarketCommunication { // utilizzata dagli stock per inviare richieste al market
     Location: "socket://localhost:8001"
     Protocol: sodep
-    Interfaces: StockToMarketCommunicationInterface
+    Interfaces: StockToMarketCommunicationInterface, MarketCommunicationInterface
 }
 
 inputPort PlayerToMarketCommunication { // utilizzata dai player per inviare richieste al market
     Location: "socket://localhost:8002"
     Protocol: sodep
-    Interfaces: PlayerToMarketCommunicationInterface
+    Interfaces: PlayerToMarketCommunicationInterface, MarketCommunicationInterface
 }
 
 
 
 execution { concurrent }
+
+init {
+    global.status = true // se true il Market è aperto
+}
 
 main {
 
@@ -56,15 +60,15 @@ newStock.price
             global.registeredStocks.( newStock.name )[ 0 ].price = newStock.price;
             global.registeredStocks.( newStock.name )[ 0 ].name = newStock.name;
             valueToPrettyString@StringUtils( newStock )( result );
-            println@Console( "\nMarket@registerStock, newStock:" + result )()
-
-        };
-// else
-// todo: lanciare un fault, uno stock con lo stesso nome è già registrato al market
-// (caso praticamente impossibile visto che StocksDiscoverer presta particolare attenzione al parsing dei nomi dei nuovi stock)
-
-        response = "done"
-
+            println@Console( "\nMarket@registerStock, newStock:" + result )();
+            response = "done"
+        } else {
+            /*  esiste uno stock con lo stesso nome è già registrato al market
+             * (caso praticamente impossibile visto che StocksDiscoverer presta
+             * particolare attenzione al parsing dei nomi dei nuovi stock)
+             */
+            throw( StockDuplicateException )
+        }
     } ] { nullProcess }
 
 /*
@@ -90,11 +94,10 @@ newStock.price
                 .liquidity = 100
             };
             newAccount << global.accounts.(incomingPlayer)
-        //Caso in cui il player fosse già presente, non dovrebbe
-        //verificarsi
-        }/*else {
-            TODO ?
-        }*/
+        } else {
+            //Caso in cui il player fosse già presente, non dovrebbe verificarsi
+            throw( PlayerDuplicateException )
+        }
     } ] {
     println@Console( "\nregisterPlayer@Market, incomingPlayer: "
         + incomingPlayer )()
@@ -106,6 +109,9 @@ newStock.price
         if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
             buyStock@MarketToStockCommunication( stockName )( response );
             println@Console( response )()
+        } else {
+            //Caso in cui lo stock non esiste
+            throw( StockUnknownException )
         }
     } ] { nullProcess }
 
@@ -113,6 +119,9 @@ newStock.price
         if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
             sellStock@MarketToStockCommunication( stockName )( response );
             println@Console( response )()
+        } else {
+            //Caso in cui lo stock non esiste
+            throw( StockUnknownException )
         }
     } ] { nullProcess }
 
@@ -136,6 +145,16 @@ newStock.price
       }
     } ] { nullProcess }
 
+    /* Verifica lo stato del market */
+    [ checkMarketStatus( )( responsestatus ) {
+        if (global.status)  {
+         responsestatus=true;
+         responsestatus.message = "Market Open"
+       } else {
+         responsestatus=false;
+         responsestatus.message = "Market Closed"
+       }
+     } ] { nullProcess }
 
 
 // riceve i quantitativi deperiti da parte di ciascun stock; le richieste sono strutturate secondo StockVariationStruct

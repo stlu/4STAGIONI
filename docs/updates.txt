@@ -29,3 +29,14 @@
 - Sia in Stock.ol che in Market.ol ho rimodellato alcuni output a video offrendo -spero- una maggior chiarezza.
 - Ho iniziato a metter mano a docs/service.odt per effettuare alcuni aggiornamenti; manca ancora
     un po' di lavoro che mi prometto di svolgere al più presto.
+
+2016_05_08 Stefania
+- Market.ol 
+  Inserita gestione status del Market 
+  inserite gestioni eccezioni per operazioni sul Market : registerStock,registerPlayer,buyStock,sellStock
+  aggiunta checkMarketStatus 
+- creato interfaces/marketInterface.iol 
+- Player.ol e playerInterface.iol Inserite gestione eccezioni Player e gestione status del Market
+- Stock.ol gestione status del Market
+- StocksMng.ol e stockInterface.iol Inserite gestione eccezioni Stock
+

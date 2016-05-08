@@ -7,17 +7,17 @@
 
 		Market.ol
 
+		Player.ol
+
 	embeddedService/
 
 		StocksMng.ol
-
-		StocksDiscoverer.ol
 
 		Stock.ol
 
 	config/
 
-		config.iol
+		constants.iol
 
 		stocks/
 
@@ -27,9 +27,11 @@
 
 			grano.xml
 
-	behaviour/
+	interfaces/
 
 		stockInterface.iol
+                marketInterface.iol  
+                playerInterface.iol
 
 
 *****Stock.ol*****
@@ -51,7 +53,7 @@ operazioni
 	- 'buyStock' stub, bozza
 	- 'sellStock' stub, bozza
 
-*****config.iol*****
+*****constants.iol*****
 
 Qui sono definite delle costanti per i path alla directory 'config' e alle sue
 sottodirectory.
@@ -70,6 +72,8 @@ inputPort StockToMarketCommunication (socket://localhost:8001)
 
 outputPort MarketToStockCommunication (socket://localhost:8000)
 	attraverso la quale invia richieste a StockMng
+inputPort PlayerToMarketCommunication (socket://localhost:8002)
+         utilizzata dai player per inviare richieste al market
 
 operazioni
 	- 'register' stampa a video il nome dello stock che chiede di registrarsi

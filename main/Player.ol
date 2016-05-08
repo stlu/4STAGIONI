@@ -1,5 +1,6 @@
 include "../config/constants.iol"
 include "../interfaces/playerInterface.iol"
+include "../interfaces/marketInterface.iol"
 
 include "console.iol"
 include "time.iol"
@@ -9,7 +10,7 @@ include "string_utils.iol"
 outputPort PlayerToMarketCommunication {
     Location: "socket://localhost:8002"
     Protocol: sodep
-    Interfaces: PlayerToMarketCommunicationInterface
+    Interfaces: PlayerToMarketCommunicationInterface, MarketCommunicationInterface
 }
 
 /*
@@ -23,7 +24,17 @@ constants {
 
 execution { single }
 
+init {
+  install ( IOException => println@Console( "caught IOException :  Server is down" )() );
+  install ( PlayerDuplicateException => println@Console( "caught PlayerDuplicateException : Player already exists" )() );
+  install ( StockUnknownException => println@Console( "caught StockUnknownException : Stock not found" )() )
+}
+
 main {
+
+/* Verifica lo stato del Market */
+   checkMarketStatus@PlayerToMarketCommunication()( server_conn );
+
 /*
  * La prima cosa che un Player fa appena viene al mondo è registrarsi presso il
  * Market, il Market gli risponde con una struttura dati che riflette il suo
@@ -33,13 +44,15 @@ main {
     registerPlayer@PlayerToMarketCommunication(Player_Name)(newStatus);
     status << newStatus;
 
-    while ( true ) {
+    while ( server_conn ) {
         buyStock@PlayerToMarketCommunication( "Oro" )( response ) |
         sellStock@PlayerToMarketCommunication( "Oro" )( response ) |
         buyStock@PlayerToMarketCommunication( "Petrolio" )( response ) |
         sellStock@PlayerToMarketCommunication( "Petrolio" )( response ) |
         buyStock@PlayerToMarketCommunication( "Grano" )( response ) |
         sellStock@PlayerToMarketCommunication( "Grano" )( response )|
+                //buyStock@PlayerToMarketCommunication( "OroBIANCO" )( response ) |
+                //sellStock@PlayerToMarketCommunication( "OroBIANCO" )( response ) |
         infoStockList@PlayerToMarketCommunication( "info" )( responseInfo );
         println@Console( "informazioni ricevute sugli stock" )();
         for ( k = 0, k < #responseInfo.name, k++ ) {
@@ -52,6 +65,9 @@ main {
 
 
 // BOOM BOOM BOOM every 3 seconds
-        sleep@Time( 3000 )()
+        sleep@Time( 3000 )();
+
+        /* Verifica lo stato del Market */
+        checkMarketStatus@PlayerToMarketCommunication()( server_conn )
     }
 }

@@ -19,9 +19,9 @@ type StockQuantity: void {
 
 interface PlayerToMarketCommunicationInterface {
     RequestResponse:
-        registerPlayer( string )( PlayerStatus ),
-        buyStock( string )( string ),
-        sellStock( string )( string ),
+        registerPlayer( string )( PlayerStatus ) throws PlayerDuplicateException,
+        buyStock( string )( string ) throws StockUnknownException ,
+        sellStock( string )( string ) throws StockUnknownException,
         infoStockList( string )( infoStockStruct ),
         infoStockPrice( string )( double ),
         infoStockAvaliability( string )( double )

@@ -60,9 +60,8 @@ dynamicStockList.( stockName )[ 0 ].location
 // posso adesso avviare l'operazione sullo specifico stock
             buyStock@StockInstance()( response )
         } else {
-
-// todo: meglio lanciare un fault...
-            response = "lo stockName richiesto non esiste!"
+             //Lo stock non esiste
+            throw( StockUnknownException )
         }
 
     } ] { nullProcess }
@@ -76,9 +75,8 @@ dynamicStockList.( stockName )[ 0 ].location
 // posso adesso avviare l'operazione sullo specifico stock
             sellStock@StockInstance()( response )
         } else {
-
-// todo: meglio lanciare un fault...
-            response = "lo stockName richiesto non esiste!"
+            //Lo stock non esiste
+            throw( StockUnknownException )
         }
 
     } ] { nullProcess }

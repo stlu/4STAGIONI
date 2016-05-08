@@ -1,6 +1,7 @@
 include "../config/constants.iol"
 include "file.iol"
 include "../interfaces/stockInterface.iol"
+include "../interfaces/marketInterface.iol"
 
 include "console.iol"
 include "string_utils.iol"
@@ -29,7 +30,7 @@ inputPort StockInstance {
 outputPort StockToMarketCommunication {
     Location: "socket://localhost:8001"
     Protocol: sodep
-    Interfaces: StockToMarketCommunicationInterface
+    Interfaces: StockToMarketCommunicationInterface, MarketCommunicationInterface
 }
 
 
@@ -51,6 +52,7 @@ main {
 
 // riceve in input la struttura dati di configurazione del nuovo stock (StockSubStruct)
     [ start( stockConfig )() {
+        install ( IOException => println@Console( "caught IOException :  Market is down" )() );
 
 /*
         valueToPrettyString@StringUtils( stockConfig )( result );
@@ -67,6 +69,11 @@ main {
 // compongo una piccola struttura dati con le uniche informazioni richieste dal market
         registrationStruct.name = stockConfig.static.name;
         registrationStruct.price = stockConfig.static.info.price;
+
+        // Verifica lo stato del Market
+        checkMarketStatus@StockToMarketCommunication()( server_conn );
+        if (!server_conn) throw( IOException );
+
         registerStock@StockToMarketCommunication( registrationStruct )( response );
 
 // who I am? Imposto la location della output port Self per comunicare con "me stesso"
@@ -173,6 +180,11 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 // TODO: sicuri sia sufficiente una OneWay?
                     stockWasting.name = me.static.name;
                     stockWasting.variation = wastingRate;
+
+                    // Verifica lo stato del Market
+                    checkMarketStatus@StockToMarketCommunication()( server_conn );
+                    if (!server_conn) throw( IOException );
+
                     destroyStock@StockToMarketCommunication( stockWasting );
 
                     println@Console( "Sono " + me.static.name + " (processId: " + processId + "); WASTING di " + amount +
@@ -225,6 +237,11 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 // TODO: sicuri sia sufficiente una OneWay?
                 stockProduction.name = me.static.name;
                 stockProduction.variation = productionRate;
+
+                // Verifica lo stato del Market
+                checkMarketStatus@StockToMarketCommunication()( server_conn );
+                if (!server_conn) throw( IOException );
+
                 addStock@StockToMarketCommunication( stockProduction );
 
                 println@Console( "Sono " + me.static.name + " (processId: " + processId + "); PRODUCTION di " + amount +
