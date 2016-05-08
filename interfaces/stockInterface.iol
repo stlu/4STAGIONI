@@ -2,7 +2,6 @@ type Stocks: void {
     .stock[0,*]: StockSubStruct
 }
 
-
 type StockSubStruct: void {
     .static: StockStaticStruct
     .dynamic: StockDynamicStruct
@@ -42,11 +41,11 @@ type StockRegistrationStruct: void {
     .price: double
 }
 
+// struttura dati utilizzata dallo stock per comunicare al market la variazione di produzione / deperimento
 type StockVariationStruct: void {
     .name: string
     .variation: double
 }
-
 
 
 
@@ -69,9 +68,9 @@ interface StockInstanceInterface {
 
 // from stocks to market
 interface StockToMarketCommunicationInterface {
-    RequestResponse: registerStock( StockRegistrationStruct )( string )
-    OneWay: addStock( StockRegistrationStruct )
-    OneWay:destroyStock( StockRegistrationStruct )
+    RequestResponse: registerStock( StockRegistrationStruct )( string )    
+    OneWay: addStock( StockVariationStruct )
+    OneWay: destroyStock( StockVariationStruct )
 }
 
 // from market to stocks (passando per StocksMng.ol)

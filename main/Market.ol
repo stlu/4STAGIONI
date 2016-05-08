@@ -7,6 +7,7 @@ include "../interfaces/playerInterface.iol"
 include "console.iol"
 include "time.iol"
 include "string_utils.iol"
+include "math.iol"
 
 
 
@@ -108,7 +109,6 @@ newStock.price
         }
     } ] { nullProcess }
 
-
     [ sellStock( stockName )( response ) {
         if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
             sellStock@MarketToStockCommunication( stockName )( response );
@@ -117,26 +117,85 @@ newStock.price
     } ] { nullProcess }
 
     [ infoStockList( info )( responseInfo ) {
-              i=0;
-              foreach ( stockName : global.registeredStocks ) {
-                responseInfo.name[i]=string( global.registeredStocks.(stockName)[ 0 ].name);
-                i=i+1
-                }
+        i=0;
+        foreach ( stockName : global.registeredStocks ) {
+            responseInfo.name[i]=string( global.registeredStocks.(stockName)[ 0 ].name);
+            i=i+1
+        }
     } ] { nullProcess }
 
-    [ destroyStock( var )] {
-            println@Console(  "diminuto il prezzo del: "+ var.name +" del " + var.price + "% = " + global.registeredStocks.(var.name)[ 0 ].price)();
-            global.registeredStocks.(var.name)[ 0 ].price -=(global.registeredStocks.(var.name)[ 0 ].price*var.price)/100;
-            println@Console( "agggiornatooooooooooo   "+ global.registeredStocks.(var.name)[ 0 ].price )()
-
-     }
 
 
-     [ addStock( var )] {
-             println@Console(  "aumentatoooooo il prezzo del: "+ var.name +" del " + var.price + "% = " + global.registeredStocks.(var.name)[ 0 ].price)();
-             global.registeredStocks.(var.name)[ 0 ].price +=(global.registeredStocks.(var.name)[ 0 ].price*var.price)/100;
-             println@Console( "alllelujaaaaaa   "+ global.registeredStocks.(var.name)[ 0 ].price )()
+// riceve i quantitativi deperiti da parte di ciascun stock; le richieste sono strutturate secondo StockVariationStruct
+// (.name, .variation) definita all'interno di stockInterface.iol
+    [ destroyStock( stockVariation )] {
 
-      }
+/*
+        valueToPrettyString@StringUtils( stockVariation )( result );
+        println@Console( result )();
+*/
 
+        if ( is_defined( global.registeredStocks.( stockVariation.name ) )) {
+            me -> global.registeredStocks.( stockVariation.name )[ 0 ]; // shortcut
+
+            synchronized( syncToken ) {
+
+                oldPrice = me.price;
+
+// aggiorno il prezzo attuale (ricorda che entrambi sono tipi di dato double)
+// il decremento del prezzo potrebbe generare una cifra con un numero di decimali > 2;
+// sottraggo il decremento al prezzo attuale e successivamente effettuo una arrotondamento a 2 cifre decimali
+                priceDecrement = me.price * stockVariation.variation;
+                me.price -= priceDecrement;
+// effettuo l'arrotondamento a 2 decimali
+                roundRequest = me.price;
+                roundRequest.decimals = 2;
+                round@Math( roundRequest )( me.price );
+
+// TODO
+// che succede se il prezzo diventa < 0? (caso poco probabile ma possibile!)
+// forse sarebbe opportuno utilizzare una RequestResponse e, qualora il decremento del prezzo non sia possibile,
+// non procede con il deperimento della quantità di stock                
+
+                println@Console( "destroyStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
+                                    "; variation " + stockVariation.variation + "; decremento del prezzo di " + priceDecrement +
+                                    " (" + me.price + " * " + stockVariation.variation + "), " +
+                                    "da " + oldPrice + " a " + me.price + ")")()
+            }
+        }
+    }
+
+// riceve i quantitativi prodotti da parte di ciascun stock; le richieste sono strutturate secondo StockVariationStruct
+// (.name, .variation) definita all'interno di stockInterace.iol
+    [ addStock( stockVariation )] {
+
+/*
+        valueToPrettyString@StringUtils( stockVariation )( result );
+        println@Console( result )();
+*/
+
+        if ( is_defined( global.registeredStocks.( stockVariation.name ) )) {
+            me -> global.registeredStocks.( stockVariation.name ); // shortcut
+
+            synchronized( syncToken ) {
+
+                oldPrice = me.price;
+
+// aggiorno il prezzo attuale (ricorda che entrambi sono tipi di dato double)
+// l'incremento del prezzo potrebbe generare una cifra con un numero di decimali > 2;
+// sommo l'incremento al prezzo attuale e successivamente effettuo una arrotondamento a 2 cifre decimali
+                priceIncrement = me.price * stockVariation.variation;
+                me.price += priceIncrement;
+// effettuo l'arrotondamento a 2 decimali 
+                roundRequest = me.price;
+                roundRequest.decimals = 2;
+                round@Math( roundRequest )( me.price );
+
+                println@Console( "addStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
+                                    "; variation " + stockVariation.variation + "; incremento del prezzo di " + priceIncrement +
+                                    " (" + me.price + " * " + stockVariation.variation + "), " +
+                                    "da " + oldPrice + " a " + me.price + ")")()
+            }
+        }
+    }
 }

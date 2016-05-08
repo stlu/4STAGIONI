@@ -99,7 +99,7 @@ main {
                 response = "Sono " + me.static.name + " (processId: " + processId+ "); decremento la disponibilità di stock"
             } else {
 
-// todo: lanciare un fault
+// TODO: lanciare un fault?
                 response = "Sono " + me.static.name + " (processId: " + processId+ "); la disponibilità è terminata"
             }
         }
@@ -133,27 +133,45 @@ main {
         println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); ho appena avviato la procedura di WASTING" )();
 
         while ( true ) {
+
             synchronized( syncToken ) {
+
 // la quantità residua è sufficiente per effettuare un deperimento
                 if ( me.dynamic.availability >= me.wasting.high ) {
                     lowerBound = me.wasting.low;
                     upperBound = me.wasting.high;
                     randGen; // la procedura imposta la variabile amount
 
+/*
+Direttamente dalle specifiche:
+"Ad esempio, se prima c’erano 20 unità di Grano e ne deperiscono 3, lo
+Stock di Grano comunicherà al Market il dato 0.15 (corrispondente a 3/20). Dato che è diminuita
+l’offerta del Grano, il Market aumenta il prezzo totale del Grano del 15%."
+
+E' quindi necessario comunicare al market un valore decimale da cui verrà poi calcolato un incremento di prezzo
+*/                    
+
 // quantità deperita / quantità totale corrente
-// todo: occhio all'arrotondamento (lo ho messo % per problemi matematici)
-                    availabilityRate = amount*100 / me.dynamic.availability;
+                    roundRequest = double( amount ) / double( me.dynamic.availability );
+// effettuo l'arrotondamento a 2 decimali
+                    roundRequest.decimals = 2;
+                    round@Math( roundRequest )( wastingRate );
+
+// decremento la quantità deperita alla quantità totale disponibile
+                    oldAvailability = me.dynamic.availability;
                     me.dynamic.availability -= amount;
-                    println@Console("ciaooooooo io sono:  "+ me.static.name + "e ce stato un waste del: " + availabilityRate+ "%")();
-// todo: lancio al market l'informazione sul deperimento (credo sia sufficiente una OneWay)
-                    StockRegistrationStruct.name = me.static.name;
-                    StockRegistrationStruct.price = availabilityRate;
-                    destroyStock@StockToMarketCommunication(StockRegistrationStruct);
-                    println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); WASTING di " + amount +
-                                        " (" + me.dynamic.availability + "); interval: " + me.wasting.interval + " secondi" )()
+
+// TODO: sicuri sia sufficiente una OneWay?
+                    stockWasting.name = me.static.name;
+                    stockWasting.variation = wastingRate;
+                    destroyStock@StockToMarketCommunication( stockWasting );
+
+                    println@Console( "Sono " + me.static.name + " (processId: " + processId + "); WASTING di " + amount +
+                                        " (da " + oldAvailability + " a " + me.dynamic.availability + "); wastingRate di " + 
+                                        roundRequest + " arrotondato a " + wastingRate + "; interval: " +
+                                        me.production.interval + " secondi" )()                                        
                 }
             };
-
 
             sleep@Time( me.wasting.interval * 1000 )()
         }
@@ -175,18 +193,35 @@ main {
                 upperBound = me.production.high;
                 randGen; // la procedura imposta la variabile amount
 
-// quantità prodotta / quantità totale corrente
-// todo: occhio all'arrotondamento (sempre % per evitare errore)
-                productionRate = amount*100 / me.dynamic.availability;
-                me.dynamic.availability += amount;
-                println@Console("newssss io sono:  "+ me.static.name + "e ce stata un incremento del: " + productionRate+ "%")();
+/*
+Direttamente dalle specifiche:
 
-// todo: lancio al market l'informazione sul deperimento (credo sia sufficiente una OneWay)
-                StockRegistrationStruct.name = me.static.name;
-                StockRegistrationStruct.price = productionRate;
-                addStock@StockToMarketCommunication(StockRegistrationStruct);
-                println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); PRODUCTION di " + amount +
-                                    " (" + me.dynamic.availability + "); interval: " + me.production.interval + " secondi" )()
+"Ad esempio, se prima della produzione c’erano 20 unità di Grano e ne vengono prodotte 2,
+lo Stock di Grano comunicherà al Market il dato 0.1 (corrispondente a 2/20).
+Dato che è aumentata l’offerta del Grano, il Market diminuisce il prezzo totale del Grano del 10%."
+
+E' quindi necessario comunicare al market un valore decimale da cui verrà poi calcolato un decremento di prezzo
+*/                    
+
+// quantità prodotta / quantità totale corrente
+                roundRequest = double( amount ) / double( me.dynamic.availability );
+// effettuo l'arrotondamento a 2 decimali
+                roundRequest.decimals = 2;
+                round@Math( roundRequest )( productionRate );
+
+// incremento la quantità totale disponibile della quantità prodotta
+                oldAvailability = me.dynamic.availability;
+                me.dynamic.availability += amount;
+
+// TODO: sicuri sia sufficiente una OneWay?
+                stockProduction.name = me.static.name;
+                stockProduction.variation = productionRate;
+                addStock@StockToMarketCommunication( stockProduction );
+
+                println@Console( "Sono " + me.static.name + " (processId: " + processId + "); PRODUCTION di " + amount +
+                                    " (da " + oldAvailability + " a " + me.dynamic.availability + "); productionRate di " + 
+                                    roundRequest + " arrotondato a " + productionRate + "; interval: " +
+                                    me.production.interval + " secondi" )()
             };
 
             sleep@Time( me.production.interval * 1000 )()
