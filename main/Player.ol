@@ -5,7 +5,7 @@ include "../interfaces/marketInterface.iol"
 include "console.iol"
 include "time.iol"
 include "string_utils.iol"
-
+include "math.iol"
 
 outputPort PlayerToMarketCommunication {
     Location: "socket://localhost:8002"
@@ -21,6 +21,20 @@ outputPort PlayerToMarketCommunication {
 constants {
     Player_Name = "Default Player"
 }
+
+define randGenStock {
+// Returns a random number d such that 0.0 <= d < 1.0.
+    random@Math()( rand );
+// genera un valore random, estremi inclusi
+    if (rand<0.33){
+      stockName="Oro"
+    }else if(rand<0.66){
+      stockName="Petrolio"
+    }else{
+      stockName="Grano"
+    }
+}
+
 
 execution { single }
 
@@ -58,10 +72,11 @@ main {
         for ( k = 0, k < #responseInfo.name, k++ ) {
           println@Console( responseInfo.name[k] )()
         };
-        infoStockPrice@PlayerToMarketCommunication( "Petrolio" )( responsePrice );
-        println@Console("prezzo stock: "  + responsePrice )();
-        infoStockAvaliability@PlayerToMarketCommunication( "Petrolio" )( responseAvaliability );
-        println@Console("disponibilità stock: "  + responseAvaliability )();
+        randGenStock;
+        infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
+        println@Console("prezzo del: " + stockName + " = "  + responsePrice )();
+        infoStockAvaliability@PlayerToMarketCommunication( stockName )( responseAvaliability );
+        println@Console("disponibilità di: " + stockName + " = " + responseAvaliability )();
 
 
 // BOOM BOOM BOOM every 3 seconds
