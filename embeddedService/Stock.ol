@@ -122,6 +122,15 @@ main {
     } ] { nullProcess }
 
 
+    [ infoStockAvaliability()( responseAvaliability ) {
+        getProcessId@Runtime()( processId );
+
+        me -> global.stockConfig;
+        responseAvaliability =double(me.dynamic.availability)
+
+    } ] { nullProcess }
+
+
 
 // OneWay riflessivo; operazione di deperimento di unità dello stock
     [ wasting() ] {
@@ -149,7 +158,7 @@ Stock di Grano comunicherà al Market il dato 0.15 (corrispondente a 3/20). Dato
 l’offerta del Grano, il Market aumenta il prezzo totale del Grano del 15%."
 
 E' quindi necessario comunicare al market un valore decimale da cui verrà poi calcolato un incremento di prezzo
-*/                    
+*/
 
 // quantità deperita / quantità totale corrente
                     roundRequest = double( amount ) / double( me.dynamic.availability );
@@ -167,9 +176,9 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
                     destroyStock@StockToMarketCommunication( stockWasting );
 
                     println@Console( "Sono " + me.static.name + " (processId: " + processId + "); WASTING di " + amount +
-                                        " (da " + oldAvailability + " a " + me.dynamic.availability + "); wastingRate di " + 
+                                        " (da " + oldAvailability + " a " + me.dynamic.availability + "); wastingRate di " +
                                         roundRequest + " arrotondato a " + wastingRate + "; interval: " +
-                                        me.production.interval + " secondi" )()                                        
+                                        me.production.interval + " secondi" )()
                 }
             };
 
@@ -201,7 +210,7 @@ lo Stock di Grano comunicherà al Market il dato 0.1 (corrispondente a 2/20).
 Dato che è aumentata l’offerta del Grano, il Market diminuisce il prezzo totale del Grano del 10%."
 
 E' quindi necessario comunicare al market un valore decimale da cui verrà poi calcolato un decremento di prezzo
-*/                    
+*/
 
 // quantità prodotta / quantità totale corrente
                 roundRequest = double( amount ) / double( me.dynamic.availability );
@@ -219,7 +228,7 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
                 addStock@StockToMarketCommunication( stockProduction );
 
                 println@Console( "Sono " + me.static.name + " (processId: " + processId + "); PRODUCTION di " + amount +
-                                    " (da " + oldAvailability + " a " + me.dynamic.availability + "); productionRate di " + 
+                                    " (da " + oldAvailability + " a " + me.dynamic.availability + "); productionRate di " +
                                     roundRequest + " arrotondato a " + productionRate + "; interval: " +
                                     me.production.interval + " secondi" )()
             };

@@ -124,6 +124,18 @@ newStock.price
         }
     } ] { nullProcess }
 
+    [ infoStockPrice( stockName )( responsePrice ) {
+      if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
+          responsePrice=global.registeredStocks.( stockName )[ 0 ].price
+      }
+    } ] { nullProcess }
+
+    [ infoStockAvaliability( stockName )( responseAvaliability ) {
+      if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
+      infoStockAvaliability@MarketToStockCommunication( stockName )( responseAvaliability )
+      }
+    } ] { nullProcess }
+
 
 
 // riceve i quantitativi deperiti da parte di ciascun stock; le richieste sono strutturate secondo StockVariationStruct
@@ -155,7 +167,7 @@ newStock.price
 // TODO
 // che succede se il prezzo diventa < 0? (caso poco probabile ma possibile!)
 // forse sarebbe opportuno utilizzare una RequestResponse e, qualora il decremento del prezzo non sia possibile,
-// non procede con il deperimento della quantità di stock                
+// non procede con il deperimento della quantità di stock
 
                 println@Console( "destroyStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
                                     "; variation " + stockVariation.variation + "; decremento del prezzo di " + priceDecrement +
@@ -186,7 +198,7 @@ newStock.price
 // sommo l'incremento al prezzo attuale e successivamente effettuo una arrotondamento a 2 cifre decimali
                 priceIncrement = me.price * stockVariation.variation;
                 me.price += priceIncrement;
-// effettuo l'arrotondamento a 2 decimali 
+// effettuo l'arrotondamento a 2 decimali
                 roundRequest = me.price;
                 roundRequest.decimals = 2;
                 round@Math( roundRequest )( me.price );

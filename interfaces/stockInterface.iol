@@ -64,11 +64,12 @@ interface StockInstanceInterface {
 
     RequestResponse: buyStock( void )( string )
     RequestResponse: sellStock( void )( string )
+    RequestResponse:infoStockAvaliability( void )( double )
 }
 
 // from stocks to market
 interface StockToMarketCommunicationInterface {
-    RequestResponse: registerStock( StockRegistrationStruct )( string )    
+    RequestResponse: registerStock( StockRegistrationStruct )( string )
     OneWay: addStock( StockVariationStruct )
     OneWay: destroyStock( StockVariationStruct )
 }
@@ -77,4 +78,5 @@ interface StockToMarketCommunicationInterface {
 interface MarketToStockCommunicationInterface {
     RequestResponse: buyStock( string )( string )
     RequestResponse: sellStock( string )( string )
+    RequestResponse:infoStockAvaliability( string )( double )
 }

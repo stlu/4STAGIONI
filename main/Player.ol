@@ -45,7 +45,10 @@ main {
         for ( k = 0, k < #responseInfo.name, k++ ) {
           println@Console( responseInfo.name[k] )()
         };
-
+        infoStockPrice@PlayerToMarketCommunication( "Petrolio" )( responsePrice );
+        println@Console("prezzo stock: "  + responsePrice )();
+        infoStockAvaliability@PlayerToMarketCommunication( "Petrolio" )( responseAvaliability );
+        println@Console("disponibilità stock: "  + responseAvaliability )();
 
 
 // BOOM BOOM BOOM every 3 seconds

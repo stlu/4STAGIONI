@@ -85,6 +85,24 @@ dynamicStockList.( stockName )[ 0 ].location
 
 
 
+    [ infoStockAvaliability( stockName )( responseAvaliability ) {
+
+// dynamic lookup rispetto alla stringa stockName
+        if ( is_defined( global.dynamicStockList.( stockName )[ 0 ] )) {
+// per comunicare con la specifica istanza, imposto a runtime la location della outputPort StockInstance
+            StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
+// posso adesso avviare l'operazione sullo specifico stock
+            infoStockAvaliability@StockInstance()( responseAvaliability )
+        } else {
+
+// todo: meglio lanciare un fault...
+            responseAvaliability = double(1000)
+        }
+
+    } ] { nullProcess }
+
+
+
 /*
 operazione invocata da StocksLauncher (innesco)
 
