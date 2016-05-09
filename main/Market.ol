@@ -223,8 +223,11 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
      } ] { nullProcess }
 
 
+
 // riceve i quantitativi deperiti da parte di ciascun stock; le richieste sono strutturate secondo StockVariationStruct
 // (.name, .variation) definita all'interno di stockInterface.iol
+// si è deperità una quantità di stock, destroyStock rettifica il prezzo;
+// dato che la quantità è diminuita, il prezzo aumenta
     [ destroyStock( stockVariation )] {
 
 /*
@@ -233,37 +236,38 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
 */
 
         if ( is_defined( global.registeredStocks.( stockVariation.name ) )) {
-            me -> global.registeredStocks.( stockVariation.name )[ 0 ]; // shortcut
+            me -> global.registeredStocks.( stockVariation.name ); // shortcut
 
             synchronized( syncToken ) {
 
                 oldPrice = me.price;
 
+
+
 // aggiorno il prezzo attuale (ricorda che entrambi sono tipi di dato double)
-// il decremento del prezzo potrebbe generare una cifra con un numero di decimali > 2;
-// sottraggo il decremento al prezzo attuale e successivamente effettuo una arrotondamento a 2 cifre decimali
-                priceDecrement = me.price * stockVariation.variation;
-                me.price -= priceDecrement;
+// l'incremento del prezzo potrebbe generare una cifra con un numero di decimali > 2;
+// sommo l'incremento al prezzo attuale e successivamente effettuo una arrotondamento a 2 cifre decimali
+                priceIncrement = me.price * stockVariation.variation;
+                me.price += priceIncrement;
 // effettuo l'arrotondamento a 2 decimali
                 roundRequest = me.price;
                 roundRequest.decimals = 2;
                 round@Math( roundRequest )( me.price );
 
-// TODO
-// che succede se il prezzo diventa < 0? (caso poco probabile ma possibile!)
-// forse sarebbe opportuno utilizzare una RequestResponse e, qualora il decremento del prezzo non sia possibile,
-// non procede con il deperimento della quantità di stock
-
                 println@Console( "destroyStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
-                                    "; variation " + stockVariation.variation + "; decremento del prezzo di " + priceDecrement +
-                                    " (" + me.price + " * " + stockVariation.variation + "), " +
+                                    "; variation " + stockVariation.variation + "; incremento del prezzo di " + priceDecrement +
+                                    "(" + me.price + " * " + stockVariation.variation + "), " +
                                     "da " + oldPrice + " a " + me.price + ")")()
             }
         }
     }
 
+
+
 // riceve i quantitativi prodotti da parte di ciascun stock; le richieste sono strutturate secondo StockVariationStruct
 // (.name, .variation) definita all'interno di stockInterface.iol
+// è stata prodotta una quantità di stock, addStock rettifica il prezzo;
+// dato che la quantità è aumentata, il prezzo diminuisce
     [ addStock( stockVariation )] {
 
 /*
@@ -279,18 +283,24 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
                 oldPrice = me.price;
 
 // aggiorno il prezzo attuale (ricorda che entrambi sono tipi di dato double)
-// l'incremento del prezzo potrebbe generare una cifra con un numero di decimali > 2;
-// sommo l'incremento al prezzo attuale e successivamente effettuo una arrotondamento a 2 cifre decimali
-                priceIncrement = me.price * stockVariation.variation;
-                me.price += priceIncrement;
-// effettuo l'arrotondamento a 2 decimali
+// il decremento del prezzo potrebbe generare una cifra con un numero di decimali > 2;
+// sottraggo il decremento al prezzo attuale e successivamente effettuo una arrotondamento a 2 cifre decimali
+                priceDecrement = me.price * stockVariation.variation;
+                me.price -= priceDecrement;
+// effettuo l'arrotondamento a 2 decimali                
                 roundRequest = me.price;
                 roundRequest.decimals = 2;
                 round@Math( roundRequest )( me.price );
 
+// TODO
+// che succede se il prezzo diventa < 0? (caso poco probabile ma possibile!)
+// forse sarebbe opportuno utilizzare una RequestResponse e, qualora il decremento del prezzo non sia possibile,
+// non procedere con il deperimento della quantità di stock; oppure continuare ad usare una OneWay ma prevedere 
+// il lancio di un fault
+
                 println@Console( "addStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
-                                    "; variation " + stockVariation.variation + "; incremento del prezzo di " + priceIncrement +
-                                    " (" + me.price + " * " + stockVariation.variation + "), " +
+                                    "; variation " + stockVariation.variation + "; decremento del prezzo di " + priceIncrement +
+                                    "(" + me.price + " * " + stockVariation.variation + "), " +
                                     "da " + oldPrice + " a " + me.price + ")")()
             }
         }

@@ -10,6 +10,7 @@ include "time.iol"
 include "math.iol"
 
 
+
 // le seguenti definizioni di interfaccia e outputPort consento un'invocazione "riflessiva"
 interface LocalInterface {
     OneWay: wasting( void ) // deperimento
@@ -36,6 +37,7 @@ define randGen {
 // genera un valore random, estremi inclusi
     amount = int(rand * (upperBound - lowerBound + 1) + lowerBound)
 }
+
 
 
 execution { concurrent }
@@ -119,7 +121,6 @@ main {
             response = "Sono " + me.static.name + " (processId: " + processId+ "); incremento la disponibilità di stock"
         }
     } ] { nullProcess }
-
 
 
 
@@ -243,6 +244,7 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
     * local | Client: StocksMng | Server: Stock
     */
     [ infoStockAvaliability()( responseAvaliability ) {
+// TODO: sicuri che non serva un synchronized?        
         responseAvaliability = global.stockConfig.dynamic.availability
     } ] { nullProcess }
 

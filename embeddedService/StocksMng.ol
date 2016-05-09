@@ -193,13 +193,17 @@ indicato; ricorda che non è incluso il nodo radice <stock>
                             loadEmbeddedService@Runtime( embedInfo )( StockInstance.location );
 
 // qualora l'istruzione precedente non abbia generato alcun fault (RuntimeExceptionType)
+// avvia la registrazione dello stock sul market
+
+// TODO
+// potrebbe essere una OneWay? Forse è più prundente attendere la risposta della procedura di registrazione sul market?
+// l'operazione start avvia la procedura di registrazione dello stock sul market che tuttavia potrebbe essere chiuso                            
+                            start@StockInstance( newStock )( response );
+
 // aggiorno la dynamicStockList; il parametro location è di vitale importanza per la corretta identificazione delle istanze
                             global.dynamicStockList.( stockName)[ 0 ].filename = currentFile;
-                            global.dynamicStockList.( stockName )[ 0 ].location = StockInstance.location;
+                            global.dynamicStockList.( stockName )[ 0 ].location = StockInstance.location
 
-// avvia la registrazione dello stock sul market
-// potrebbe essere una OneWay? Forse è più prundente attendere la risposta della procedura di registrazione sul market?
-                            start@StockInstance( newStock )( response )
                         }
                     }
                 }
