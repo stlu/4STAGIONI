@@ -134,7 +134,7 @@ main {
         getProcessId@Runtime()( processId );
 
         me -> global.stockConfig;
-        responseAvaliability =double(me.dynamic.availability)
+        responseAvaliability = (me.dynamic.availability)
 
     } ] { nullProcess }
 

@@ -88,8 +88,8 @@ dynamicStockList.( stockName )[ 0 ].location
     * porta 8000 | Client: Market | Server: StocksMng
     */
     [ infoStockAvaliability( stockName )( responseAvaliability ) {
-        if ( is_defined( global.dynamicStockList.( stockName ))) {
-            StockInstance.location = global.dynamicStockList.( stockName ).location;
+        if ( is_defined( global.dynamicStockList.( stockName )[ 0 ])) {
+            StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
             infoStockAvaliability@StockInstance()( responseAvaliability )
         } else {
             // todo: meglio lanciare un fault...
@@ -135,7 +135,7 @@ qualora anche il nome non sia già presente, allora posso lanciare lo stock a ru
             for ( k = 0, k < #listResult.result, k++ ) {
                 currentFile = listResult.result[ k ];
 
-                println@Console( "StocksMng@discover: analizzo " + currentFile)();
+                if (DEBUG) println@Console( "StocksMng@discover: analizzo " + currentFile)();
 
 // i filename presenti si riferiscono a stock già in esecuzione? Quindi già presenti nella struct dynamicStockList?
                 found = false;
@@ -148,7 +148,7 @@ qualora anche il nome non sia già presente, allora posso lanciare lo stock a ru
 // qualora il filename in esame non abbia trovato alcuna corrispondenza, posso allora procedere alle ulteriori verifiche
                 if ( found == false ) {
 
-                    println@Console( "StocksMng@discover: il file corrente (" + currentFile + ") non è presente in dynamicStockList")();
+                    if (DEBUG) println@Console( "StocksMng@discover: il file corrente (" + currentFile + ") non è presente in dynamicStockList")();
 
 // procedo con la lettura del file xml
                     filePath = CONFIG_PATH_STOCKS + currentFile;
@@ -156,7 +156,7 @@ qualora anche il nome non sia già presente, allora posso lanciare lo stock a ru
 
                     if ( fileExists ) {
 
-                        println@Console( "StocksMng@discover: avvio la lettura dell'xml da " + filePath )();
+                        if (DEBUG) println@Console( "StocksMng@discover: avvio la lettura dell'xml da " + filePath )();
 
 /*
 todo: catch typeMismatch fault
@@ -179,11 +179,11 @@ indicato; ricorda che non è incluso il nodo radice <stock>
                             newStock.dynamic.availability = xmlStock.info.availability;
                             stockName -> newStock.static.name;
 
-                            println@Console( "StocksMng@discover: trovato un nuovo stock " + stockName )();
+                            if (DEBUG) println@Console( "StocksMng@discover: trovato un nuovo stock " + stockName )();
 
 
 
-                            println@Console( "StocksMng@discover: avvia una nuova istanza di stock (" +
+                            if (DEBUG) println@Console( "StocksMng@discover: avvia una nuova istanza di stock (" +
                                                 stockName + " / " + currentFile + ")" )();
 // lancia una nuova istanza dello stock
                             embedInfo.type = "Jolie";
@@ -197,7 +197,7 @@ indicato; ricorda che non è incluso il nodo radice <stock>
 
 // TODO
 // potrebbe essere una OneWay? Forse è più prundente attendere la risposta della procedura di registrazione sul market?
-// l'operazione start avvia la procedura di registrazione dello stock sul market che tuttavia potrebbe essere chiuso                            
+// l'operazione start avvia la procedura di registrazione dello stock sul market che tuttavia potrebbe essere chiuso
                             start@StockInstance( newStock )( response );
 
 // aggiorno la dynamicStockList; il parametro location è di vitale importanza per la corretta identificazione delle istanze

@@ -10,6 +10,7 @@
 	aggiunta eccezione per market close
 - Stock.ol e StocksMng.ol
 	gestione stampe con debug
+        errore infoStockAvaliability
 
 
 2016_05_09 Fausto
