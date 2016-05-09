@@ -1,3 +1,12 @@
+2016_05_09 Stefania
+- constants.iol 
+	inserita costante DEBUG che se true attiva stampe di controllo (di default è false)
+        per esempio: jolie -C DEBUG=true Market.ol
+- Market.ol 
+	corrette operazioni decremento/incremento stock buyStock e sellStock 
+        inserita gestione stampe con debug
+- grano.xml corretti valori di wasting          
+
 2016_05_09 Fausto
 -StockInterface.iol, Stefano L. ha dichiarato infoStockAvailability nelle interfaccie StockInstance e
 	MarketToStockCommunication, bella Ste, mi serviva!cho modificato il tipo di ritorno da

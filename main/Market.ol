@@ -58,7 +58,7 @@ newStock.price
             global.registeredStocks.( newStock.name )[ 0 ].price = newStock.price;
             global.registeredStocks.( newStock.name )[ 0 ].name = newStock.name;
             valueToPrettyString@StringUtils( newStock )( result );
-            println@Console( "\nMarket@registerStock, newStock:" + result )();
+            if (DEBUG) println@Console( "\nMarket@registerStock, newStock:" + result )();
             response = "done"
         } else {
             /*  esiste uno stock con lo stesso nome è già registrato al market
@@ -92,7 +92,7 @@ newStock.price
         throw( PlayerDuplicateException )
     }
 } ] {
-println@Console( "\nregisterPlayer@Market, incomingPlayer: "
+    if (DEBUG) println@Console( "\nregisterPlayer@Market, incomingPlayer: "
     + incomingPlayer )()
 }
 
@@ -107,6 +107,12 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
 [ buyStock( TransactionRequest )( Receipt ) {
     /* 1) */
     if ( is_defined( global.registeredStocks.(TransactionRequest.stock))) {
+
+        if (DEBUG) {
+            println@Console( ">>>BUYSTOCK PLAYER cash " + global.accounts.(TransactionRequest.player).liquidity )();
+            println@Console( ">>>BUYSTOCK Costo Stock " + global.registeredStocks.(TransactionRequest.stock).price )()
+        };
+
         if ( global.accounts.(TransactionRequest.player).liquidity
             <
             global.registeredStocks.(TransactionRequest.stock).price) {
@@ -124,6 +130,8 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
                 /* 2) */
                 infoStockAvaliability@MarketToStockCommunication
                 ( TransactionRequest.stock )( availability );
+                if (DEBUG) println@Console( ">>>BUYSTOCK availability " + availability )();
+
                 if ( availability > 0 ) {
                     //Decremento disponibilità Stock
                     buyStock@MarketToStockCommunication
@@ -142,26 +150,26 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
                     Receipt.price = 0 - global.registeredStocks.
                                         (TransactionRequest.stock).price;
 
-                    //  decremento prezzo di 1/disponibilità,ora devi solo aggiungere il fattore tempo ;)
-                    priceDecrement = global.registeredStocks.(TransactionRequest.stock).price * double( 1 ) / double(availability );
+                    //  incremento prezzo di 1/disponibilità,ora devi solo aggiungere il fattore tempo ;)
+                    priceDecrement = global.registeredStocks.(TransactionRequest.stock).price * (double( 1.0 ) / double( availability ));
                     // effettuo l'arrotondamento a 2 decimali
                     roundRequest = priceDecrement;
                     roundRequest.decimals = 2;
                     round@Math( roundRequest )( variazionePrezzo);
-                    global.registeredStocks.(TransactionRequest.stock).price -= priceDecrement;
-                    println@Console("incremento prezzo di: "  + variazionePrezzo )()
+                    global.registeredStocks.(TransactionRequest.stock).price += priceDecrement;
+                    if (DEBUG) println@Console(">>>BUYSTOCK incremento prezzo di: "  + variazionePrezzo )()
+                };
+                with( Receipt ) {
+                    .stock = TransactionRequest.stock;
+                    .kind = 1;
+                    .esito = true
                 }
-            };
-            println@Console( response )();
-            with( Receipt ) {
-                .stock = TransactionRequest.stock;
-                .kind = 1;
-                .esito = true
             }
         }
-    } /*else {
-        Caso in cui lo Stock richiesto dal Player non esista
-    }*/
+    } else {
+        // Caso in cui lo Stock richiesto dal Player non esista
+        throw( StockUnknownException )
+    }
 } ] { nullProcess }
 
 /*
@@ -191,24 +199,24 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
 
 
             //  decremento prezzo di 1/disponibilità,ora devi solo aggiungere il fattore tempo ;)
-            priceIncrement = global.registeredStocks.(TransactionRequest.stock).price * double( 1 ) / double(availability );
+            priceIncrement = global.registeredStocks.(TransactionRequest.stock).price * (double( 1.0 ) / double(availability ));
             // effettuo l'arrotondamento a 2 decimali
             roundRequest = priceIncrement;
             roundRequest.decimals = 2;
             round@Math( roundRequest )( variazionePrezzo);
-            global.registeredStocks.(TransactionRequest.stock).price += priceIncrement;
-            println@Console( "decremento prezzo di: "  + variazionePrezzo )()
+            global.registeredStocks.(TransactionRequest.stock).price -= priceIncrement;
+            if (DEBUG) println@Console( ">>>SELLSTOCK decremento prezzo di: "  + variazionePrezzo )()
 
         };
-        println@Console( response )();
         with( Receipt ) {
             .stock = TransactionRequest.stock;
             .kind = -1;
             .esito = true
         }
-    } /*else {
-        Caso in cui lo Stock richiesto dal Player non esista
-    }*/
+    } else {
+        // Caso in cui lo Stock richiesto dal Player non esista
+        throw( StockUnknownException )
+    }
 } ] { nullProcess }
 
     [ infoStockList( info )( responseInfo ) {
@@ -274,7 +282,7 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
                 roundRequest.decimals = 2;
                 round@Math( roundRequest )( me.price );
 
-                println@Console( "destroyStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
+                if (DEBUG) println@Console( "destroyStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
                                     "; variation " + stockVariation.variation + "; incremento del prezzo di " + priceDecrement +
                                     "(" + me.price + " * " + stockVariation.variation + "), " +
                                     "da " + oldPrice + " a " + me.price + ")")()
@@ -318,7 +326,7 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
 // non procedere con il deperimento della quantità di stock; oppure continuare ad usare una OneWay ma prevedere
 // il lancio di un fault
 
-                println@Console( "addStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
+                if (DEBUG) println@Console( "addStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
                                     "; variation " + stockVariation.variation + "; decremento del prezzo di " + priceIncrement +
                                     "(" + me.price + " * " + stockVariation.variation + "), " +
                                     "da " + oldPrice + " a " + me.price + ")")()

@@ -6,13 +6,13 @@
         <price _jolie_type="double">100.00</price>
         <wasting _jolie_type="void">
             <low _jolie_type="int">1</low>
-            <high _jolie_type="int">3</high>
+            <high _jolie_type="int">5</high>
             <interval _jolie_type="int">5</interval>
         </wasting>
         <production _jolie_type="void">
             <low _jolie_type="int">3</low>
             <high _jolie_type="int">6</high>
-            <interval _jolie_type="int">5</interval>
+            <interval _jolie_type="int">3</interval>
         </production>
     </info>
 </stock>
