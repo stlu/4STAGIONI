@@ -140,8 +140,16 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
                     -=
                     global.registeredStocks.(TransactionRequest.stock).price;
                     Receipt.price = 0 - global.registeredStocks.
-                                        (TransactionRequest.stock).price
-                    //TODO: Il prezzo deve essere incrementato
+                                        (TransactionRequest.stock).price;
+
+                    //  decremento prezzo di 1/disponibilità,ora devi solo aggiungere il fattore tempo ;)
+                    priceDecrement = global.registeredStocks.(TransactionRequest.stock).price * double( 1 ) / double(availability );
+                    // effettuo l'arrotondamento a 2 decimali
+                    roundRequest = priceDecrement;
+                    roundRequest.decimals = 2;
+                    round@Math( roundRequest )( variazionePrezzo);
+                    global.registeredStocks.(TransactionRequest.stock).price -= priceDecrement;
+                    println@Console("incremento prezzo di: "  + variazionePrezzo )()
                 }
             };
             println@Console( response )();
@@ -164,6 +172,8 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
     if ( is_defined( global.registeredStocks.(TransactionRequest.stock))) {
         /*QUESTO PUNTO è CRITICO, STO INSERENDO UN SYNC AD UN
           LIVELLO PIUTTOSTO ALTO, DOBBIAMO PARLARNE*/
+          infoStockAvaliability@MarketToStockCommunication
+          ( TransactionRequest.stock )( availability );
         synchronized ( atomicamente ) {
             //Incremento disponibilità Stock
             sellStock@MarketToStockCommunication( TransactionRequest.stock )
@@ -177,8 +187,18 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
             +=
             global.registeredStocks.(TransactionRequest.stock).price;
             Receipt.price = global.registeredStocks.
-                                        (TransactionRequest.stock).price
-            //TODO: Il prezzo deve essere decrementato
+                                        (TransactionRequest.stock).price;
+
+
+            //  decremento prezzo di 1/disponibilità,ora devi solo aggiungere il fattore tempo ;)
+            priceIncrement = global.registeredStocks.(TransactionRequest.stock).price * double( 1 ) / double(availability );
+            // effettuo l'arrotondamento a 2 decimali
+            roundRequest = priceIncrement;
+            roundRequest.decimals = 2;
+            round@Math( roundRequest )( variazionePrezzo);
+            global.registeredStocks.(TransactionRequest.stock).price += priceIncrement;
+            println@Console( "decremento prezzo di: "  + variazionePrezzo )()
+
         };
         println@Console( response )();
         with( Receipt ) {
@@ -287,7 +307,7 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
 // sottraggo il decremento al prezzo attuale e successivamente effettuo una arrotondamento a 2 cifre decimali
                 priceDecrement = me.price * stockVariation.variation;
                 me.price -= priceDecrement;
-// effettuo l'arrotondamento a 2 decimali                
+// effettuo l'arrotondamento a 2 decimali
                 roundRequest = me.price;
                 roundRequest.decimals = 2;
                 round@Math( roundRequest )( me.price );
@@ -295,7 +315,7 @@ println@Console( "\nregisterPlayer@Market, incomingPlayer: "
 // TODO
 // che succede se il prezzo diventa < 0? (caso poco probabile ma possibile!)
 // forse sarebbe opportuno utilizzare una RequestResponse e, qualora il decremento del prezzo non sia possibile,
-// non procedere con il deperimento della quantità di stock; oppure continuare ad usare una OneWay ma prevedere 
+// non procedere con il deperimento della quantità di stock; oppure continuare ad usare una OneWay ma prevedere
 // il lancio di un fault
 
                 println@Console( "addStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
