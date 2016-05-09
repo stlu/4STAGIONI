@@ -60,7 +60,8 @@ interface StocksLauncherInterface {
 interface StockInstanceInterface {
 // todo: cosa posso aspettarmi come dato in risposta all'avvio di una nuova istanza di stock?
 // dovrebbe propagare la risposta dell'operazione registerStock sul market?
-    RequestResponse: start( StockSubStruct )( void )
+    RequestResponse: start( StockSubStruct )( void ) throws IOException,
+                                                            MarketCloseException
     RequestResponse: buyStock( void )( string ) throws StockUnknownException
     RequestResponse: sellStock( void )( string ) throws StockUnknownException
     RequestResponse: infoStockAvaliability( void )( int )

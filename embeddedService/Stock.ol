@@ -24,12 +24,16 @@ inputPort StockInstance {
     Interfaces: StockInstanceInterface, LocalInterface
 }
 
+
+
 // lo stock comunica in forma autonoma con il market per richieste in output
 outputPort StockToMarketCommunication {
     Location: "socket://localhost:8001"
     Protocol: sodep
     Interfaces: StockToMarketCommunicationInterface, MarketCommunicationInterface
 }
+
+
 
 define randGen {
 // Returns a random number d such that 0.0 <= d < 1.0.
@@ -44,9 +48,12 @@ execution { concurrent }
 
 main {
 
+
+
 // riceve in input la struttura dati di configurazione del nuovo stock (StockSubStruct)
     [ start( stockConfig )() {
         install ( IOException => println@Console( "caught IOException :  Market is down" )() );
+        install ( MarketCloseException => println@Console( "caught MarketCloseException : Market is closed" )() );
 
 /*
         valueToPrettyString@StringUtils( stockConfig )( result );
@@ -54,19 +61,19 @@ main {
 */
 
         getProcessId@Runtime()( processId );
-        println@Console( "start@Stock: ho appena avviato un client stock (" +
+        if (DEBUG) println@Console( "start@Stock: ho appena avviato un client stock (" +
                             stockConfig.static.name + ", processId: " + processId + ")")();
 
         global.stockConfig << stockConfig;
+
+        // Verifica lo stato del Market
+        checkMarketStatus@StockToMarketCommunication()( server_conn );
+        if (!server_conn) throw( MarketCloseException );
 
 // avvio la procedura di registrazione dello stock sul market
 // compongo una piccola struttura dati con le uniche informazioni richieste dal market
         registrationStruct.name = stockConfig.static.name;
         registrationStruct.price = stockConfig.static.info.price;
-
-        // Verifica lo stato del Market
-        checkMarketStatus@StockToMarketCommunication()( server_conn );
-        if (!server_conn) throw( IOException );
 
         registerStock@StockToMarketCommunication( registrationStruct )( response );
 
@@ -92,7 +99,7 @@ main {
         getProcessId@Runtime()( processId );
 
         me -> global.stockConfig;
-        println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); il market ha appena richiesto @buyStock" )();
+        if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); il market ha appena richiesto @buyStock" )();
 
         synchronized( syncToken ) {
             if ( me.dynamic.availability > 0 ) {
@@ -114,12 +121,21 @@ main {
         getProcessId@Runtime()( processId );
 
         me -> global.stockConfig;
-        println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); il market ha appena richiesto @sellStock" )();
+        if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); il market ha appena richiesto @sellStock" )();
 
         synchronized( syncToken ) {
             me.dynamic.availability++;
             response = "Sono " + me.static.name + " (processId: " + processId+ "); incremento la disponibilità di stock"
         }
+    } ] { nullProcess }
+
+
+    [ infoStockAvaliability()( responseAvaliability ) {
+        getProcessId@Runtime()( processId );
+
+        me -> global.stockConfig;
+        responseAvaliability =double(me.dynamic.availability)
+
     } ] { nullProcess }
 
 
@@ -131,7 +147,7 @@ main {
 
         me -> global.stockConfig;
         me.wasting -> me.static.info.wasting;
-        println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); ho appena avviato la procedura di WASTING" )();
+        if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); ho appena avviato la procedura di WASTING" )();
 
         while ( true ) {
 
@@ -172,7 +188,7 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 
                     destroyStock@StockToMarketCommunication( stockWasting );
 
-                    println@Console( "Sono " + me.static.name + " (processId: " + processId + "); WASTING di " + amount +
+                    if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId + "); WASTING di " + amount +
                                         " (da " + oldAvailability + " a " + me.dynamic.availability + "); wastingRate di " +
                                         roundRequest + " arrotondato a " + wastingRate + "; interval: " +
                                         me.production.interval + " secondi" )()
@@ -191,7 +207,7 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 
         me -> global.stockConfig;
         me.production -> me.static.info.production;
-        println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); ho appena avviato l'operazione di PRODUCTION" )();
+        if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); ho appena avviato l'operazione di PRODUCTION" )();
 
         while ( true ) {
             synchronized( syncToken ) {
@@ -229,7 +245,7 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 
                 addStock@StockToMarketCommunication( stockProduction );
 
-                println@Console( "Sono " + me.static.name + " (processId: " + processId + "); PRODUCTION di " + amount +
+                if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId + "); PRODUCTION di " + amount +
                                     " (da " + oldAvailability + " a " + me.dynamic.availability + "); productionRate di " +
                                     roundRequest + " arrotondato a " + productionRate + "; interval: " +
                                     me.production.interval + " secondi" )()
@@ -238,14 +254,4 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
             sleep@Time( me.production.interval * 1000 )()
         }
     }
-
-    /*
-    * Operazione infoStockAvaliability dell'interfaccia StockInstanceInterface
-    * local | Client: StocksMng | Server: Stock
-    */
-    [ infoStockAvaliability()( responseAvaliability ) {
-// TODO: sicuri che non serva un synchronized?        
-        responseAvaliability = global.stockConfig.dynamic.availability
-    } ] { nullProcess }
-
 }

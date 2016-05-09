@@ -6,6 +6,11 @@
 	corrette operazioni decremento/incremento stock buyStock e sellStock 
         inserita gestione stampe con debug
 - grano.xml corretti valori di wasting          
+- stockInterface.iol 
+	aggiunta eccezione per market close
+- Stock.ol e StocksMng.ol
+	gestione stampe con debug
+
 
 2016_05_09 Fausto
 -StockInterface.iol, Stefano L. ha dichiarato infoStockAvailability nelle interfaccie StockInstance e
