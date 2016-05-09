@@ -1,22 +1,38 @@
-2016_05_07 Fausto
--Definita costante Player_Name nel Player, la costante è pensata per essere
-    overridata con -C quando viene lanciato Player.ol
--Definita operazione registerPlayer nel Market, il market crea l'account e
-    notifica il Player con lo stato del suo account
--Modificato behaviour del Player, aggiunte come prime operazioni la registazione
-    e il salvataggio del suo status
--Create strutture dati apposite in playerInterface.iol
--Creato questo txt perchè i commit non mi soddisfano = )
+2016_05_09 Fausto
+-StockInterface.iol, Stefano L. ha dichiarato infoStockAvailability nelle interfaccie StockInstance e
+	MarketToStockCommunication, bella Ste, mi serviva!cho modificato il tipo di ritorno da
+	double a int
+-Market.ol, implementata una prima versione di buyStock e sellStock (speculari)
+	che contiene un punto critico
+-Player.ol, modifiche più stilistiche che strutturali, nextBuy e nextSell
+	mi piacciono assai, e credo renderanno più semplice l'implementazione
+	delle strategie personalizzate
+-PlayerInterface.iol, modifiche ai tipi di dato PlayerStatus e StockQuantity,
+	creazione dei tipi Receipt e TransactionRequest, modificata
+	l'interfaccia per usarli.
+-Questo documento funziona meglio se ci si scrive in testa = )
+
+
+2016_05_08 Stefania
+- Market.ol
+  Inserita gestione status del Market
+  inserite gestioni eccezioni per operazioni sul Market : registerStock,registerPlayer,buyStock,sellStock
+  aggiunta checkMarketStatus
+- creato interfaces/marketInterface.iol
+- Player.ol e playerInterface.iol Inserite gestione eccezioni Player e gestione status del Market
+- Stock.ol gestione status del Market
+- StocksMng.ol e stockInterface.iol Inserite gestione eccezioni Stock
+
 
 2016_05_08 Pardox
-- Ho affinato alcune implementazioni inserite da Leggio (production e wasting) 
+- Ho affinato alcune implementazioni inserite da Leggio (production e wasting)
     per una maggior aderenza alle specifiche.
 
     "Ad esempio, se prima della produzione c’erano 20 unità di Grano e ne vengono prodotte 2,
     lo Stock di Grano comunicherà al Market il dato 0.1 (corrispondente a 2/20).
     Dato che è aumentata l’offerta del Grano, il Market diminuisce il prezzo totale del Grano del 10%."
 
-    E' esplicitamente indicato che è necessario comunicare al market la quantità deperita o 
+    E' esplicitamente indicato che è necessario comunicare al market la quantità deperita o
     prodotta sottoforma di valore decimale (che provvedo ad arrotondare mediante round@Math).
     Mercoledì scorso avevamo definito la struttura dati StockVariationStruct
     (all'interno di stockInterface.iol) proprio per tal tipo di comunicazione (con la variabile
@@ -30,13 +46,13 @@
 - Ho iniziato a metter mano a docs/service.odt per effettuare alcuni aggiornamenti; manca ancora
     un po' di lavoro che mi prometto di svolgere al più presto.
 
-2016_05_08 Stefania
-- Market.ol 
-  Inserita gestione status del Market 
-  inserite gestioni eccezioni per operazioni sul Market : registerStock,registerPlayer,buyStock,sellStock
-  aggiunta checkMarketStatus 
-- creato interfaces/marketInterface.iol 
-- Player.ol e playerInterface.iol Inserite gestione eccezioni Player e gestione status del Market
-- Stock.ol gestione status del Market
-- StocksMng.ol e stockInterface.iol Inserite gestione eccezioni Stock
 
+2016_05_07 Fausto
+-Definita costante Player_Name nel Player, la costante è pensata per essere
+    overridata con -C quando viene lanciato Player.ol
+-Definita operazione registerPlayer nel Market, il market crea l'account e
+    notifica il Player con lo stato del suo account
+-Modificato behaviour del Player, aggiunte come prime operazioni la registazione
+    e il salvataggio del suo status
+-Create strutture dati apposite in playerInterface.iol
+-Creato questo txt perchè i commit non mi soddisfano = )

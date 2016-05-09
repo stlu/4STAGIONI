@@ -22,6 +22,30 @@ constants {
     Player_Name = "Default Player"
 }
 
+//Il Player aggiorna il suo status (liquidità e stock posseduti) in funzione
+//dell'esito delle sue operazioni
+
+define infoStockList {
+    infoStockList@PlayerToMarketCommunication( "info" )( responseInfo );
+    println@Console( "informazioni ricevute sugli stock" )();
+    for ( k = 0, k < #responseInfo.name, k++ ) {
+        println@Console( responseInfo.name[k] )()
+    }
+}
+define buy {
+    buyStock@PlayerToMarketCommunication( nextBuy )( receipt );
+    if(receipt.esito == true) {
+        status.ownedStock.(receipt.stock).quantity += receipt.kind;
+        status.liquidity += receipt.price
+    }
+}
+define sell {
+    sellStock@PlayerToMarketCommunication( nextSell )( receipt );
+    if(receipt.esito == true) {
+        status.ownedStock.(receipt.stock).quantity += receipt.kind;
+        status.liquidity += receipt.price
+    }
+}
 define randGenStock {
 // Returns a random number d such that 0.0 <= d < 1.0.
     random@Math()( rand );
@@ -49,29 +73,47 @@ main {
 /* Verifica lo stato del Market */
    checkMarketStatus@PlayerToMarketCommunication()( server_conn );
 
-/*
- * La prima cosa che un Player fa appena viene al mondo è registrarsi presso il
- * Market, il Market gli risponde con una struttura dati che riflette il suo
- * account, e che contiene quindi nome, stock posseduti e relative quantità,
- * denaro disponibile. Il player se la salva in 'status'.
- */
+   /*
+   * La prima cosa che un Player fa appena viene al mondo è registrarsi presso il
+   * Market, il Market gli risponde con una struttura dati che riflette il suo
+   * account, e che contiene quindi nome, stock posseduti e relative quantità,
+   * denaro disponibile. Il player se la salva in 'status'.
+   */
     registerPlayer@PlayerToMarketCommunication(Player_Name)(newStatus);
     status << newStatus;
+    /*
+     * Il player mantiene queste due piccole strutture dati alle quali cambia
+     * di volta in volta il nome dello stock oggetto della transazione prima di
+     * inviare la richiesta.
+     */
+    with( nextBuy ) {
+        .player = Player_Name;
+        .stock = ""
+    };
+    with ( nextSell ) {
+        .player = Player_Name;
+        .stock = ""
+    };
 
     while ( server_conn ) {
-        buyStock@PlayerToMarketCommunication( "Oro" )( response ) |
-        sellStock@PlayerToMarketCommunication( "Oro" )( response ) |
-        buyStock@PlayerToMarketCommunication( "Petrolio" )( response ) |
-        sellStock@PlayerToMarketCommunication( "Petrolio" )( response ) |
-        buyStock@PlayerToMarketCommunication( "Grano" )( response ) |
-        sellStock@PlayerToMarketCommunication( "Grano" )( response )|
-                //buyStock@PlayerToMarketCommunication( "OroBIANCO" )( response ) |
-                //sellStock@PlayerToMarketCommunication( "OroBIANCO" )( response ) |
-        infoStockList@PlayerToMarketCommunication( "info" )( responseInfo );
-        println@Console( "informazioni ricevute sugli stock" )();
-        for ( k = 0, k < #responseInfo.name, k++ ) {
-          println@Console( responseInfo.name[k] )()
-        };
+
+        { nextBuy.stock = "Oro"; buy }
+        |
+        { nextSell.stock = "Oro"; sell }
+        |
+        { nextBuy.stock = "Grano"; buy }
+        |
+        { nextSell.stock = "Grano"; sell }
+        |
+        { nextBuy.stock = "Petrolio"; buy }
+        |
+        { nextSell.stock = "Petrolio"; sell }
+        |
+            //{ nextBuy.stock = "OroBIANCO"; buy }
+            //|
+            //{ nextSell.stock = "OroBIANCO"; sell }
+            //|
+        infoStockList;
         randGenStock;
         infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
         println@Console("prezzo del: " + stockName + " = "  + responsePrice )();

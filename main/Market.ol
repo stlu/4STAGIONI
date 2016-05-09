@@ -10,7 +10,6 @@ include "string_utils.iol"
 include "math.iol"
 
 
-
 outputPort MarketToStockCommunication { // utilizzata dal market per inviare richieste agli stock
     Location: "socket://localhost:8000"
     Protocol: sodep
@@ -28,7 +27,6 @@ inputPort PlayerToMarketCommunication { // utilizzata dai player per inviare ric
     Protocol: sodep
     Interfaces: PlayerToMarketCommunicationInterface, MarketCommunicationInterface
 }
-
 
 
 execution { concurrent }
@@ -81,49 +79,117 @@ newStock.price
 * dichiarata da nessuna parte, viene semplicemente creata quando arriva il
 * primo player.
 */
-    //Richiesta in entrata dal Player
-    [ registerPlayer (incomingPlayer)(newAccount) {
-        //Caso in cui il Player è nuovo
-        if ( ! is_defined( global.accounts.(incomingPlayer) )) {
-            with(global.accounts.(incomingPlayer)) {
-                .name = incomingPlayer;
-                with(.ownedStock) {
-                    .name = "";
-                    .quantity = -1
-                };
-                .liquidity = 100
-            };
-            newAccount << global.accounts.(incomingPlayer)
-        } else {
-            //Caso in cui il player fosse già presente, non dovrebbe verificarsi
-            throw( PlayerDuplicateException )
-        }
-    } ] {
-    println@Console( "\nregisterPlayer@Market, incomingPlayer: "
-        + incomingPlayer )()
+//Richiesta in entrata dal Player
+[ registerPlayer (incomingPlayer)(newAccount) {
+    //Caso in cui il Player è nuovo
+    if ( ! is_defined( global.accounts.(incomingPlayer) )) {
+        global.accounts.(incomingPlayer) = incomingPlayer;
+        global.accounts.(incomingPlayer).liquidity = 100;
+        newAccount << global.accounts.(incomingPlayer)
+    //Caso in cui il player fosse già presente, non dovrebbe
+    //verificarsi
+    } else {
+        throw( PlayerDuplicateException )
     }
+} ] {
+println@Console( "\nregisterPlayer@Market, incomingPlayer: "
+    + incomingPlayer )()
+}
 
-// operazione esposta ai players sulla porta 8003, definita nell'interfaccia PlayerToMarketCommunicationInterface
-// è tutto assolutamente da implementare!
-    [ buyStock( stockName )( response ) {
-        if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
-            buyStock@MarketToStockCommunication( stockName )( response );
-            println@Console( response )()
+/*
+ * Operazione buyStock dell'interfaccia PlayerToMarketCommunicationInterface
+ * porta 8000 | Client: Player | Server: Market
+ *
+ * Responsabilità del Market è di verificare la possibilità dell'acquisto
+ * 1) Verificare disponibilità denaro del Player (locale)
+ * 2) Verificare disponibilità Stock (deve chiedere allo Stock)
+ */
+[ buyStock( TransactionRequest )( Receipt ) {
+    /* 1) */
+    if ( is_defined( global.registeredStocks.(TransactionRequest.stock))) {
+        if ( global.accounts.(TransactionRequest.player).liquidity
+            <
+            global.registeredStocks.(TransactionRequest.stock).price) {
+                with( Receipt ) {
+                    .stock = TransactionRequest.stock;
+                    .kind = 1;
+                    .esito = false;
+                    .price = global.registeredStocks.
+                                        (TransactionRequest.stock).price
+                }
         } else {
-            //Caso in cui lo stock non esiste
-            throw( StockUnknownException )
-        }
-    } ] { nullProcess }
+            /*QUESTO PUNTO è CRITICO, STO INSERENDO UN SYNC AD UN
+              LIVELLO PIUTTOSTO ALTO, DOBBIAMO PARLARNE*/
+            synchronized ( atomicamente ) {
+                /* 2) */
+                infoStockAvaliability@MarketToStockCommunication
+                ( TransactionRequest.stock )( availability );
+                if ( availability > 0 ) {
+                    //Decremento disponibilità Stock
+                    buyStock@MarketToStockCommunication
+                                ( TransactionRequest.stock )( response );
 
-    [ sellStock( stockName )( response ) {
-        if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
-            sellStock@MarketToStockCommunication( stockName )( response );
-            println@Console( response )()
-        } else {
-            //Caso in cui lo stock non esiste
-            throw( StockUnknownException )
+                    //Incremento quantità stock posseduta dal player
+                    //nell'account presso il Market
+                    global.accounts.(TransactionRequest.player).ownedStock.
+                                    (TransactionRequest.stock).quantity++;
+
+                    //Decremento denaro nell'account del player presso il
+                    //Market
+                    global.accounts.(TransactionRequest.player).liquidity
+                    -=
+                    global.registeredStocks.(TransactionRequest.stock).price;
+                    Receipt.price = 0 - global.registeredStocks.
+                                        (TransactionRequest.stock).price
+                    //TODO: Il prezzo deve essere incrementato
+                }
+            };
+            println@Console( response )();
+            with( Receipt ) {
+                .stock = TransactionRequest.stock;
+                .kind = 1;
+                .esito = true
+            }
         }
-    } ] { nullProcess }
+    } /*else {
+        Caso in cui lo Stock richiesto dal Player non esista
+    }*/
+} ] { nullProcess }
+
+/*
+ * Operazione sellStock dell'interfaccia PlayerToMarketCommunicationInterface
+ * porta 8000 | Client: Player | Server: Market
+ */
+[ sellStock( TransactionRequest )( Receipt ) {
+    if ( is_defined( global.registeredStocks.(TransactionRequest.stock))) {
+        /*QUESTO PUNTO è CRITICO, STO INSERENDO UN SYNC AD UN
+          LIVELLO PIUTTOSTO ALTO, DOBBIAMO PARLARNE*/
+        synchronized ( atomicamente ) {
+            //Incremento disponibilità Stock
+            sellStock@MarketToStockCommunication( TransactionRequest.stock )
+                                                            ( response );
+            //Decremento quantità stock posseduta dal player nell'account
+            //presso il Market
+            global.accounts.(TransactionRequest.player).ownedStock.
+                                    (TransactionRequest.stock).quantity--;
+            //Incremento denaro nell'account del player presso il Market
+            global.accounts.(TransactionRequest.player).liquidity
+            +=
+            global.registeredStocks.(TransactionRequest.stock).price;
+            Receipt.price = global.registeredStocks.
+                                        (TransactionRequest.stock).price
+            //TODO: Il prezzo deve essere decrementato
+        };
+        println@Console( response )();
+        with( Receipt ) {
+            .stock = TransactionRequest.stock;
+            .kind = -1;
+            .esito = true
+        }
+    } /*else {
+        Caso in cui lo Stock richiesto dal Player non esista
+    }*/
+} ] { nullProcess }
 
     [ infoStockList( info )( responseInfo ) {
         i=0;
@@ -197,7 +263,7 @@ newStock.price
     }
 
 // riceve i quantitativi prodotti da parte di ciascun stock; le richieste sono strutturate secondo StockVariationStruct
-// (.name, .variation) definita all'interno di stockInterace.iol
+// (.name, .variation) definita all'interno di stockInterface.iol
     [ addStock( stockVariation )] {
 
 /*

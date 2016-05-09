@@ -10,7 +10,6 @@ include "runtime.iol"
 include "time.iol"
 
 
-
 // embedded by StocksLauncher
 inputPort StocksMng {
     Location: "local"
@@ -82,21 +81,20 @@ dynamicStockList.( stockName )[ 0 ].location
     } ] { nullProcess }
 
 
-
+    /*
+    * Operazione infoStockAvaliability dell'interfaccia
+    * MarketToStockCommunicationInterface
+    *
+    * porta 8000 | Client: Market | Server: StocksMng
+    */
     [ infoStockAvaliability( stockName )( responseAvaliability ) {
-
-// dynamic lookup rispetto alla stringa stockName
-        if ( is_defined( global.dynamicStockList.( stockName )[ 0 ] )) {
-// per comunicare con la specifica istanza, imposto a runtime la location della outputPort StockInstance
-            StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
-// posso adesso avviare l'operazione sullo specifico stock
+        if ( is_defined( global.dynamicStockList.( stockName ))) {
+            StockInstance.location = global.dynamicStockList.( stockName ).location;
             infoStockAvaliability@StockInstance()( responseAvaliability )
         } else {
-
-// todo: meglio lanciare un fault...
-            responseAvaliability = double(1000)
+            // todo: meglio lanciare un fault...
+            responseAvaliability = -1
         }
-
     } ] { nullProcess }
 
 

@@ -10,7 +10,6 @@ include "time.iol"
 include "math.iol"
 
 
-
 // le seguenti definizioni di interfaccia e outputPort consento un'invocazione "riflessiva"
 interface LocalInterface {
     OneWay: wasting( void ) // deperimento
@@ -24,16 +23,12 @@ inputPort StockInstance {
     Interfaces: StockInstanceInterface, LocalInterface
 }
 
-
-
 // lo stock comunica in forma autonoma con il market per richieste in output
 outputPort StockToMarketCommunication {
     Location: "socket://localhost:8001"
     Protocol: sodep
     Interfaces: StockToMarketCommunicationInterface, MarketCommunicationInterface
 }
-
-
 
 define randGen {
 // Returns a random number d such that 0.0 <= d < 1.0.
@@ -43,12 +38,9 @@ define randGen {
 }
 
 
-
 execution { concurrent }
 
 main {
-
-
 
 // riceve in input la struttura dati di configurazione del nuovo stock (StockSubStruct)
     [ start( stockConfig )() {
@@ -128,14 +120,6 @@ main {
         }
     } ] { nullProcess }
 
-
-    [ infoStockAvaliability()( responseAvaliability ) {
-        getProcessId@Runtime()( processId );
-
-        me -> global.stockConfig;
-        responseAvaliability =double(me.dynamic.availability)
-
-    } ] { nullProcess }
 
 
 
@@ -253,4 +237,13 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
             sleep@Time( me.production.interval * 1000 )()
         }
     }
+
+    /*
+    * Operazione infoStockAvaliability dell'interfaccia StockInstanceInterface
+    * local | Client: StocksMng | Server: Stock
+    */
+    [ infoStockAvaliability()( responseAvaliability ) {
+        responseAvaliability = global.stockConfig.dynamic.availability
+    } ] { nullProcess }
+
 }

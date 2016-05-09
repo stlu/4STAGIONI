@@ -61,17 +61,15 @@ interface StockInstanceInterface {
 // todo: cosa posso aspettarmi come dato in risposta all'avvio di una nuova istanza di stock?
 // dovrebbe propagare la risposta dell'operazione registerStock sul market?
     RequestResponse: start( StockSubStruct )( void )
-
     RequestResponse: buyStock( void )( string ) throws StockUnknownException
     RequestResponse: sellStock( void )( string ) throws StockUnknownException
-    RequestResponse:infoStockAvaliability( void )( double )
+    RequestResponse: infoStockAvaliability( void )( int )
 }
 
 // from stocks to market
 interface StockToMarketCommunicationInterface {
     RequestResponse: registerStock( StockRegistrationStruct )( string ) throws StockDuplicateException,
                                                                                IOException
-
     OneWay: addStock( StockVariationStruct )
     OneWay: destroyStock( StockVariationStruct )
 }
@@ -80,5 +78,5 @@ interface StockToMarketCommunicationInterface {
 interface MarketToStockCommunicationInterface {
     RequestResponse: buyStock( string )( string ) throws StockUnknownException
     RequestResponse: sellStock( string )( string ) throws StockUnknownException
-    RequestResponse:infoStockAvaliability( string )( double )
+    RequestResponse: infoStockAvaliability( string )( int )
 }
