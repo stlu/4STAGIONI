@@ -59,11 +59,13 @@ dynamicStockList.( stockName )[ 0 ].location
 // posso adesso avviare l'operazione sullo specifico stock
             buyStock@StockInstance()( response )
         } else {
-             //Lo stock non esiste
-            throw( StockUnknownException )
+// Lo stock non esiste
+            throw( StockUnknownException, { .stockName = stockName } )
         }
 
     } ] { nullProcess }
+
+
 
     [ sellStock( stockName )( response ) {
 
@@ -74,8 +76,8 @@ dynamicStockList.( stockName )[ 0 ].location
 // posso adesso avviare l'operazione sullo specifico stock
             sellStock@StockInstance()( response )
         } else {
-            //Lo stock non esiste
-            throw( StockUnknownException )
+// Lo stock non esiste
+            throw( StockUnknownException, { .stockName = stockName } )
         }
 
     } ] { nullProcess }
@@ -87,15 +89,15 @@ dynamicStockList.( stockName )[ 0 ].location
 *
 * porta 8000 | Client: Market | Server: StocksMng
 */
-    [ infoStockAvailability( stockName )( responseAvailability ) {
+    [ infoStockAvailability( stockName )( response ) {
         if ( is_defined( global.dynamicStockList.( stockName )[ 0 ])) {
             StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
-            infoStockAvailability@StockInstance()( responseAvailability )
+            infoStockAvailability@StockInstance()( response )
         } else {
-
-// TODO: meglio lanciare un fault... ?
-            responseAvailability = -1
+// Lo stock non esiste
+            throw( StockUnknownException, { .stockName = stockName } )
         }
+
     } ] { nullProcess }
 
 
@@ -113,13 +115,18 @@ qualora anche il nome non sia già presente, allora posso lanciare lo stock a ru
 // TODO: creare scope specifici ed effettuare install più dettagliati;
 // TODO: affiancare procedure define per snellire la lettura del codice
         install(
-                    // stock list up to date
-                    StocksDiscovererFault => println@Console( stocksDiscovery.StocksDiscovererFault.msg )(),
+// TODO: verificare tutti i seguenti fault                    
+// stock list up to date
+                    StocksDiscovererException => println@Console( discover.StocksDiscovererException.message )(),
 
                     IOException => throw( IOException ),
                     FileNotFound => throw( FileNotFound ),
 
                     RuntimeExceptionType => throw( RuntimeExceptionType )
+
+// TODO, uno stock con lo stesso nome è già registrato sul market; caso praticamente impossibile dato che è
+// effettuato un attento controllo sui nomi; implementare un comportamento                    
+//                    StockDuplicatedException => 
                 );
 
         while ( true ) {
@@ -196,10 +203,8 @@ indicato; ricorda che non è incluso il nodo radice <stock>
 // qualora l'istruzione precedente non abbia generato alcun fault (RuntimeExceptionType)
 // avvia la registrazione dello stock sul market
 
-// TODO
-// potrebbe essere una OneWay? Forse è più prundente attendere la risposta della procedura di registrazione sul market?
-// l'operazione start avvia la procedura di registrazione dello stock sul market che tuttavia potrebbe essere chiuso
-                            start@StockInstance( newStock )( response );
+// non mi aspetto alcuna risposta; eventuali fault sono gestiti all'interno delle operazioni start e register
+                            start@StockInstance( newStock )();
 
 // aggiorno la dynamicStockList; il parametro location è di vitale importanza per la corretta identificazione delle istanze
                             global.dynamicStockList.( stockName)[ 0 ].filename = currentFile;

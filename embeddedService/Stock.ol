@@ -13,6 +13,7 @@ include "math.iol"
 
 // le seguenti definizioni di interfaccia e outputPort consento un'invocazione "riflessiva"
 interface LocalInterface {
+    OneWay: registration( void ) // registrazine dello stock presso il market
     OneWay: wasting( void ) // deperimento
     OneWay: production( void ) // produzione
 }
@@ -24,8 +25,6 @@ inputPort StockInstance {
     Interfaces: StockInstanceInterface, LocalInterface
 }
 
-
-
 // lo stock comunica in forma autonoma con il market per richieste in output
 outputPort StockToMarketCommunication {
     Location: "socket://localhost:8001"
@@ -35,6 +34,13 @@ outputPort StockToMarketCommunication {
 
 
 
+init {
+// who I am? Imposto la location della output port Self per comunicare con "me stesso", ovvero con le operazioni esposte
+// in LocalInterface    
+    getLocalLocation@Runtime()( Self.location );
+    connAttempt = 0
+}
+
 define randGen {
 // Returns a random number d such that 0.0 <= d < 1.0.
     random@Math()( rand );
@@ -42,63 +48,91 @@ define randGen {
     amount = int(rand * (upperBound - lowerBound + 1) + lowerBound)
 }
 
+// verifica lo stato del market (closed / down) e lancia le rispettive eccezioni
+define checkMarketStatus {
+    checkMarketStatus@StockToMarketCommunication()( server_conn );
+    if ( ! server_conn ) throw( MarketClosedException )
+}
 
+// gestisce una visualizzazione user friendly dell'output, nonchè un delay sui tentativi ciclici di connessione al market
+define connAttemptTracking {
+    println@Console( "Connection attempt to Market failed (" + ++connAttempt + "); try again in 5 seconds" )();
+
+    while ( i < 5 ) {
+        print@Console( "." )();
+        sleep@Time( 1000 )();
+        i++
+    };
+    println@Console( "" )()
+}
 
 execution { concurrent }
 
 main {
 
+// registrazione dello stock sul market; intercetta eccezioni e gestisce i tentativi di connessione
+    [ registration() ] {
+
+        install(
+            IOException => connAttemptTracking; registration@Self(),
+            MarketClosedException => println@Console( MARKET_CLOSED_EXCEPTION )();
+                                        registration@Self(),
+// rilancia a StocksMng il fault ricevuto dal market
+//            StockDuplicatedException => throw( StockDuplicatedException )
+// TODO, perchè non stampa stockName? (già controllato con --trace, market lo invia correttamente)                                        
+            StockDuplicatedException => println@Console( STOCK_DUPLICATED_EXCEPTION + 
+                                        "( " + registration.StockDuplicatedException.stockName + ")")()
+
+        );
+
+        checkMarketStatus;
+
+        me -> global.stockConfig;
+
+// avvio la procedura di registrazione dello stock sul market
+// compongo una piccola struttura dati con le uniche informazioni richieste dal market
+        registrationStruct.name = me.static.name;
+        registrationStruct.price = me.static.info.price;
+
+        registerStock@StockToMarketCommunication( registrationStruct )();
+
+// posso adesso avviare l'operazione di wasting (deperimento), ovvero un thread parallelo e indipendente (definito
+// come operazione all'interno del servizio Stock) dedicato allo svolgimento di tal operazione
+        if ( me.static.info.wasting.interval > 0 ) {
+            wasting@Self()
+        };
+
+// idem per production (leggi sopra)
+        if ( me.info.production.interval > 0 ) {
+            production@Self()
+        }
+    }
+
 
 
 // riceve in input la struttura dati di configurazione del nuovo stock (StockSubStruct)
+// avvia l'operazione di registrazione sul market
     [ start( stockConfig )() {
-        
-        install (
-            IOException => println@Console( "caught IOException : Market is down" )(),
-            MarketCloseException => println@Console( "caught MarketCloseException : Market is closed" )()
-        );
 
 /*
         valueToPrettyString@StringUtils( stockConfig )( result );
         println@Console( result )();
 */
 
-// Verifica lo stato del Market
-        checkMarketStatus@StockToMarketCommunication()( server_conn );
-        if ( ! server_conn) throw( MarketCloseException );
-
-        getProcessId@Runtime()( processId );
-        if (DEBUG) println@Console( "start@Stock: ho appena avviato un client stock (" +
-                                    stockConfig.static.name + ", processId: " + processId + ")")();
-
-        global.stockConfig << stockConfig;
-
-// avvio la procedura di registrazione dello stock sul market
-// compongo una piccola struttura dati con le uniche informazioni richieste dal market
-        registrationStruct.name = stockConfig.static.name;
-        registrationStruct.price = stockConfig.static.info.price;
-
-        registerStock@StockToMarketCommunication( registrationStruct )( response );
-
-// who I am? Imposto la location della output port Self per comunicare con "me stesso"
-        getLocalLocation@Runtime()( Self.location );
-
-// posso adesso avviare l'operazione di wasting (deperimento), ovvero un thread parallelo e indipendente (definito
-// come operazione all'interno del servizio Stock) dedicato allo svolgimento di tal operazione
-        if ( stockConfig.static.info.wasting.interval > 0 ) {
-            wasting@Self()
+        if ( DEBUG ) { 
+            getProcessId@Runtime()( processId );
+            println@Console( "start@Stock: ho appena avviato un client stock (" +
+                                stockConfig.static.name + ", processId: " + processId + ")")()
         };
 
-// idem per production (leggi sopra)
-        if ( stockConfig.static.info.production.interval > 0 ) {
-            production@Self()
-        }
+        global.stockConfig << stockConfig;
+        registration@Self()
 
     } ] { nullProcess }
 
 
 
-// TODO: che tipo di risposta inviare al market? un boolean?
+// TODO: che tipo di risposta inviare al market? un boolean?    
     [ buyStock()( response ) {
 
         getProcessId@Runtime()( processId );
@@ -112,7 +146,8 @@ main {
                 response = "Sono " + me.static.name + " (processId: " + processId+ "); decremento la disponibilità di stock"
             } else {
 
-// TODO: lanciare un fault?
+// TODO: lanciare un fault? Ad esempio un AvailabilityTerminatedException
+// potrebbe essere un'idea propagarla, passando per StocksMng e Market, sino ad un avviso al Player                
                 response = "Sono " + me.static.name + " (processId: " + processId+ "); la disponibilità è terminata"
             }
         }
@@ -137,30 +172,37 @@ main {
 
 
 
-    [ infoStockAvailability()( responseAvailability ) {
-        getProcessId@Runtime()( processId );
-
+    [ infoStockAvailability()( response ) {
         me -> global.stockConfig;
-        responseAvailability = me.dynamic.availability
-
+// dev'essere synchronized poichè potrebbero verificarsi letture e scritture simultanee
+        synchronized( syncToken ) {
+            response = me.dynamic.availability
+        }
     } ] { nullProcess }
 
 
 
 // OneWay riflessivo; operazione di deperimento di unità dello stock
     [ wasting() ] {
+        install(
+// il market è down, errore irreversibile; ogni tentativo di recovery pulito equivarrebbe ad un lavoro mastodontico!
+            IOException => println@Console( MARKET_DOWN_EXCEPTION )(),
+            MarketClosedException => println@Console( MARKET_CLOSED_EXCEPTION )();
+                                    sleep@Time( 5000 )();
+                                    wasting@Self()
+        );
 
-        getProcessId@Runtime()( processId );
+        if ( DEBUG ) {
+            getProcessId@Runtime()( processId );
+            println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); ho appena avviato la procedura di WASTING" )()
+        };
 
         me -> global.stockConfig;
         me.wasting -> me.static.info.wasting;
-        if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); ho appena avviato la procedura di WASTING" )();
 
-// Verifica lo stato del Market
 // effettuo tal verifica prima di eseguire qualsiasi altra istruzione poichè le modifiche apportate alle strutture dati
 // locali potrebbero non propagarsi al market
-        checkMarketStatus@StockToMarketCommunication()( server_conn );
-        if ( ! server_conn ) throw( IOException );
+        checkMarketStatus;
 
         while ( true ) {
 
@@ -198,10 +240,13 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 // TODO: sicuri sia sufficiente una OneWay?
                     destroyStock@StockToMarketCommunication( stockWasting );
 
-                    if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId + "); WASTING di " + amount +
-                                                " (da " + oldAvailability + " a " + me.dynamic.availability + "); wastingRate di " +
-                                                roundRequest + " arrotondato a " + wastingRate + "; interval: " +
-                                                me.production.interval + " secondi" )()
+                    if ( DEBUG ) {
+                        getProcessId@Runtime()( processId );
+                        println@Console( "Sono " + me.static.name + " (processId: " + processId + "); WASTING di " + amount +
+                        " (da " + oldAvailability + " a " + me.dynamic.availability + "); wastingRate di " +
+                        roundRequest + " arrotondato a " + wastingRate + "; interval: " +
+                        me.production.interval + " secondi" )()
+                    }
                 }
             };
 
@@ -213,19 +258,27 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 
 // OneWay riflessivo; operazione di produzione di nuove unità di stock
     [ production() ] {
-        getProcessId@Runtime()( processId );
+        install(
+// il market è down, errore irreversibile; ogni tentativo di recovery pulito equivarrebbe ad un lavoro mastodontico!           
+            IOException => println@Console( MARKET_DOWN_EXCEPTION )(),
+            MarketClosedException => println@Console( MARKET_CLOSED_EXCEPTION )();
+                                    sleep@Time( 5000 )();
+                                    production@Self()
+        );        
+
+        if ( DEBUG ) {
+            getProcessId@Runtime()( processId );
+            println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); ho appena avviato l'operazione di PRODUCTION" )()
+        };
 
         me -> global.stockConfig;
         me.production -> me.static.info.production;
-        if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); ho appena avviato l'operazione di PRODUCTION" )();
 
         while ( true ) {
 
-// Verifica lo stato del Market
 // effettuo tal verifica prima di eseguire qualsiasi altra istruzione poichè le modifiche apportate alle strutture dati
 // locali potrebbero non propagarsi al market
-            checkMarketStatus@StockToMarketCommunication()( server_conn );
-            if ( ! server_conn ) throw( IOException );
+            checkMarketStatus;
 
             synchronized( syncToken ) {
                 lowerBound = me.production.low;
@@ -258,10 +311,13 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 // TODO: sicuri sia sufficiente una OneWay?
                 addStock@StockToMarketCommunication( stockProduction );
 
-                if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId + "); PRODUCTION di " + amount +
-                                            " (da " + oldAvailability + " a " + me.dynamic.availability + "); productionRate di " +
-                                            roundRequest + " arrotondato a " + productionRate + "; interval: " +
-                                            me.production.interval + " secondi" )()
+                if ( DEBUG ) {
+                    getProcessId@Runtime()( processId );
+                    println@Console( "Sono " + me.static.name + " (processId: " + processId + "); PRODUCTION di " + amount +
+                                        " (da " + oldAvailability + " a " + me.dynamic.availability + "); productionRate di " +
+                                        roundRequest + " arrotondato a " + productionRate + "; interval: " +
+                                        me.production.interval + " secondi" )()
+                }
             };
 
             sleep@Time( me.production.interval * 1000 )()

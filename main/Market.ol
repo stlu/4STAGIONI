@@ -52,6 +52,8 @@ newStock.price
 
 // operazione esposta agli stocks sulla porta 8001, definita nell'interfaccia StockToMarketCommunicationInterface
     [ registerStock( newStock )( response ) {
+// rilancia il fault all'operazione invocante, ovvero register@Stock
+        install( StockDuplicatedException => throw( StockDuplicatedException ));
 
 // dynamic lookup rispetto alla stringa newStock.name
         if ( ! is_defined( global.registeredStocks.( newStock.name )[ 0 ] )) {
@@ -59,13 +61,15 @@ newStock.price
             global.registeredStocks.( newStock.name )[ 0 ].name = newStock.name;
             valueToPrettyString@StringUtils( newStock )( result );
             if (DEBUG) println@Console( "\nMarket@registerStock, newStock:" + result )();
+// TODO: meglio rispondere un void?            
             response = "done"
         } else {
-            /*  esiste uno stock con lo stesso nome è già registrato al market
+            /* esiste uno stock con lo stesso nome è già registrato al market
              * (caso praticamente impossibile visto che StocksDiscoverer presta
-             * particolare attenzione al parsing dei nomi dei nuovi stock)
+             * particolare attenzione al parsing dei nomi dei nuovi stock);
+             * ma noi siamo avanti e risolviamo problemi impossibili ;)
              */
-            throw( StockDuplicateException )
+            throw( StockDuplicatedException, { .stockName = newStock.name } )
         }
     } ] { nullProcess }
 
@@ -81,6 +85,7 @@ newStock.price
 */
 //Richiesta in entrata dal Player
     [ registerPlayer (incomingPlayer)(newAccount) {
+
         //Caso in cui il Player è nuovo
         if ( ! is_defined( global.accounts.(incomingPlayer) )) {
             global.accounts.(incomingPlayer) = incomingPlayer;
@@ -88,7 +93,7 @@ newStock.price
             newAccount << global.accounts.(incomingPlayer)
         //Caso in cui il player fosse già presente, non dovrebbe
         //verificarsi
-        } else {
+        } else {            
             throw( PlayerDuplicateException )
         }
     } ] {
@@ -180,8 +185,8 @@ newStock.price
         if ( is_defined( global.registeredStocks.(TransactionRequest.stock))) {
             /*QUESTO PUNTO è CRITICO, STO INSERENDO UN SYNC AD UN
               LIVELLO PIUTTOSTO ALTO, DOBBIAMO PARLARNE*/
-              infoStockAvailability@MarketToStockCommunication
-              ( TransactionRequest.stock )( availability );
+            infoStockAvailability@MarketToStockCommunication
+            ( TransactionRequest.stock )( availability );
             synchronized ( atomicamente ) {
                 //Incremento disponibilità Stock
                 sellStock@MarketToStockCommunication( TransactionRequest.stock )
@@ -231,18 +236,13 @@ newStock.price
         if (DEBUG) println@Console( ">>>infoStockPrice nome"  + stockName )();
       if ( is_defined( global.registeredStocks.( stockName ) )) {
           responsePrice=global.registeredStocks.( stockName ).price
-      } else {
-          // Caso in cui lo Stock richiesto dal Player non esista
-          throw( StockUnknownException )
       }
     } ] { nullProcess }
 
+// TODO: intercettare StockUnknownException eventualmente rilanciato dallo stock o direttamente generato all'interno dell'operazione
     [ infoStockAvailability( stockName )( responseAvailability ) {
-        if ( is_defined( global.registeredStocks.( stockName ))) {
+        if ( is_defined( global.registeredStocks.( stockName ) )) {
             infoStockAvailability@MarketToStockCommunication( stockName )( responseAvailability )
-        } else {
-            // Caso in cui lo Stock richiesto dal Player non esista
-            throw( StockUnknownException )
         }
     } ] { nullProcess }
 
@@ -250,20 +250,20 @@ newStock.price
 
     /* Verifica lo stato del market */
     [ checkMarketStatus( )( responsestatus ) {
-        if (global.status)  {
-         responsestatus=true;
-         responsestatus.message = "Market Open"
-       } else {
-         responsestatus=false;
-         responsestatus.message = "Market Closed"
-       }
+        if (global.status) {
+            responsestatus=true;
+            responsestatus.message = "Market Open"
+        } else {
+            responsestatus=false;
+            responsestatus.message = "Market Closed"
+        }
      } ] { nullProcess }
 
 
 
 // riceve i quantitativi deperiti da parte di ciascun stock; le richieste sono strutturate secondo StockVariationStruct
 // (.name, .variation) definita all'interno di stockInterface.iol
-// si è deperità una quantità di stock, destroyStock rettifica il prezzo;
+// si è deperità una quantità di stock, destroyStock rettifica il prezzo; 
 // dato che la quantità è diminuita, il prezzo aumenta
     [ destroyStock( stockVariation )] {
 

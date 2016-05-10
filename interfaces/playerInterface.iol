@@ -42,5 +42,5 @@ interface PlayerToMarketCommunicationInterface {
         sellStock( TransactionRequest )( Receipt ) throws StockUnknownException,
         infoStockList( string )( infoStockStruct ) throws TypeMismatch,
         infoStockPrice( string )( double ) throws StockUnknownExceptiont,
-        infoStockAvailability( string )( double ) throws StockUnknownExceptiont
+        infoStockAvailability( string )( double ) throws StockUnknownExceptiont,
 }

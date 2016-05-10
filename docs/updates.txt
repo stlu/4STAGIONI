@@ -71,3 +71,14 @@
     e il salvataggio del suo status
 -Create strutture dati apposite in playerInterface.iol
 -Creato questo txt perchè i commit non mi soddisfano = )
+
+
+2016_05_11 Pardox
+- In generale ho agito lato Stock -> StocksMng -> Market
+- All'interno di Stock.ol, inserita gestione "intelligente" dei tentativi di connessione al market
+    all'avvio di un'istanza dello stock; potete verificare lanciando StocksLauncher.ol prima di Market.ol.
+- Centralizzati i messaggi delle eccezioni implementate da stlu all'interno di constants
+- Verificati i vari "percorsi" delle eccezioni; lato Stock -> StocksMng -> Market siamo a buon punto;
+    aggiornata stockInterface rispetto ai vari throws.
+
+
