@@ -40,7 +40,7 @@ interface PlayerToMarketCommunicationInterface {
         registerPlayer( string )( PlayerStatus ) throws PlayerDuplicateException,
         buyStock( TransactionRequest )( Receipt ) throws StockUnknownException,
         sellStock( TransactionRequest )( Receipt ) throws StockUnknownException,
-        infoStockList( string )( infoStockStruct ),
+        infoStockList( string )( infoStockStruct ) throws TypeMismatch,
         infoStockPrice( string )( double ) throws StockUnknownExceptiont,
         infoStockAvailability( string )( double ) throws StockUnknownExceptiont
 }

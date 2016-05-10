@@ -228,6 +228,7 @@ newStock.price
     } ] { nullProcess }
 
     [ infoStockPrice( stockName )( responsePrice ) {
+        if (DEBUG) println@Console( ">>>infoStockPrice nome"  + stockName )();
       if ( is_defined( global.registeredStocks.( stockName ) )) {
           responsePrice=global.registeredStocks.( stockName ).price
       } else {
