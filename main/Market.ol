@@ -222,20 +222,26 @@ newStock.price
     [ infoStockList( info )( responseInfo ) {
         i=0;
         foreach ( stockName : global.registeredStocks ) {
-            responseInfo.name[i]=string( global.registeredStocks.(stockName)[ 0 ].name);
+            responseInfo.name[i]=string( global.registeredStocks.(stockName).name);
             i=i+1
         }
     } ] { nullProcess }
 
     [ infoStockPrice( stockName )( responsePrice ) {
-      if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
-          responsePrice=global.registeredStocks.( stockName )[ 0 ].price
+      if ( is_defined( global.registeredStocks.( stockName ) )) {
+          responsePrice=global.registeredStocks.( stockName ).price
+      } else {
+          // Caso in cui lo Stock richiesto dal Player non esista
+          throw( StockUnknownException )
       }
     } ] { nullProcess }
 
     [ infoStockAvailability( stockName )( responseAvailability ) {
-        if ( is_defined( global.registeredStocks.( stockName )[ 0 ] )) {
+        if ( is_defined( global.registeredStocks.( stockName ))) {
             infoStockAvailability@MarketToStockCommunication( stockName )( responseAvailability )
+        } else {
+            // Caso in cui lo Stock richiesto dal Player non esista
+            throw( StockUnknownException )
         }
     } ] { nullProcess }
 
@@ -256,7 +262,7 @@ newStock.price
 
 // riceve i quantitativi deperiti da parte di ciascun stock; le richieste sono strutturate secondo StockVariationStruct
 // (.name, .variation) definita all'interno di stockInterface.iol
-// si è deperità una quantità di stock, destroyStock rettifica il prezzo; 
+// si è deperità una quantità di stock, destroyStock rettifica il prezzo;
 // dato che la quantità è diminuita, il prezzo aumenta
     [ destroyStock( stockVariation )] {
 

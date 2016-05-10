@@ -22,6 +22,15 @@ constants {
     Player_Name = "Default Player"
 }
 
+execution { single }
+
+// La sezione init deve essere prima di ogni define
+init {
+  install ( IOException => println@Console( "caught IOException :  Server is down" )() );
+  install ( PlayerDuplicateException => println@Console( "caught PlayerDuplicateException : Player already exists" )() );
+  install ( StockUnknownException => println@Console( "caught StockUnknownException : Stock not found" )() )
+}
+
 //Il Player aggiorna il suo status (liquidità e stock posseduti) in funzione
 //dell'esito delle sue operazioni
 
@@ -59,14 +68,6 @@ define randGenStock {
     }
 }
 
-
-execution { single }
-
-init {
-  install ( IOException => println@Console( "caught IOException :  Server is down" )() );
-  install ( PlayerDuplicateException => println@Console( "caught PlayerDuplicateException : Player already exists" )() );
-  install ( StockUnknownException => println@Console( "caught StockUnknownException : Stock not found" )() )
-}
 
 main {
 
