@@ -32,10 +32,6 @@ type StockDynamicStruct: void {
     .availability: int
 }
 
-type StocksDiscovererFaultType: void {
-    .msg: string
-}
-
 type StockRegistrationStruct: void {
     .name: string
     .price: double
@@ -47,37 +43,44 @@ type StockVariationStruct: void {
     .variation: double
 }
 
+type StocksDiscovererExceptionType: void {
+    .message: string
+}
 
+type StockNameExceptionType: void {
+    .stockName: string
+}
 
 // connette StocksLauncher e StocksMng
 interface StocksLauncherInterface {
-    RequestResponse: discover( int )( void ) throws StocksDiscovererFault( StocksDiscovererFaultType )
-                                                    IOException( IOExceptionType )
-                                                    FileNotFound( FileNotFoundType )
+    RequestResponse: discover( int )( void ) throws StocksDiscovererException( StocksDiscovererExceptionType )
+                                                    IOException
+                                                    FileNotFound ( FileNotFoundType )
 }
 
 // interfaccia di comunicazione con ciascuna stock instance dinamicamente allocata (ed embeddata) all'interno di StocksMng.ol
 interface StockInstanceInterface {
-// todo: cosa posso aspettarmi come dato in risposta all'avvio di una nuova istanza di stock?
-// dovrebbe propagare la risposta dell'operazione registerStock sul market?
-    RequestResponse: start( StockSubStruct )( void ) throws IOException,
-                                                            MarketCloseException
-    RequestResponse: buyStock( void )( string ) throws StockUnknownException
-    RequestResponse: sellStock( void )( string ) throws StockUnknownException
-    RequestResponse: infoStockAvailability( void )( int )
+// TODO: si vedano gli specifici todo all'interno di Stock.ol in relazione alle operazioni indicate 
+// (in sintesi dobbiam capire cosa / se / come struttura la response)    
+    RequestResponse: start( StockSubStruct )( void ) throws StockDuplicatedException( StockNameExceptionType )
+    RequestResponse: buyStock( void )( string ) throws StockUnknownException( StockNameExceptionType )
+    RequestResponse: sellStock( void )( string ) throws StockUnknownException( StockNameExceptionType )
+    RequestResponse: infoStockAvailability( void )( int ) throws StockUnknownException( StockNameExceptionType )
 }
 
 // from stocks to market
 interface StockToMarketCommunicationInterface {
-    RequestResponse: registerStock( StockRegistrationStruct )( string ) throws StockDuplicateException,
-                                                                               IOException
+    RequestResponse: registerStock( StockRegistrationStruct )( string ) throws StockDuplicatedException( StockNameExceptionType )
+// TODO: sicuri non sia necessaria una RequestResponse?  
     OneWay: addStock( StockVariationStruct )
     OneWay: destroyStock( StockVariationStruct )
 }
 
 // from market to stocks (passando per StocksMng.ol)
 interface MarketToStockCommunicationInterface {
-    RequestResponse: buyStock( string )( string ) throws StockUnknownException
-    RequestResponse: sellStock( string )( string ) throws StockUnknownException
+// TODO: si vedano gli specifici todo all'interno di Stock.ol in relazione alle operazioni indicate 
+// (in sintesi dobbiam capire cosa / se / come struttura la response)
+    RequestResponse: buyStock( string )( string ) throws StockUnknownException( StockNameExceptionType )
+    RequestResponse: sellStock( string )( string ) throws StockUnknownException( StockNameExceptionType )
     RequestResponse: infoStockAvailability( string )( int )
 }
