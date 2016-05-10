@@ -54,7 +54,7 @@ type StockNameExceptionType: void {
 // connette StocksLauncher e StocksMng
 interface StocksLauncherInterface {
     RequestResponse: discover( int )( void ) throws StocksDiscovererException( StocksDiscovererExceptionType )
-                                                    IOException
+                                                    IOException( IOExceptionType )
                                                     FileNotFound ( FileNotFoundType )
 }
 
