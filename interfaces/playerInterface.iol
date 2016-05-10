@@ -19,27 +19,28 @@ type StockQuantity: string {
  * Struttura del tipo di dato Receipt, con il quale il market informa il player
  * dell'esito di una buy/sell e del prezzo al quale è avvenuta la transazione
  */
- type Receipt: void {
-     .stock: string
-     .kind: int //Può essere solo +1 o -1
-     .esito: bool
-     .price: double //E' positivo o negativo a seconda del tipo di transazione
- }
- /*
-  * Struttura del tipo di dato TransactionRequest, contiene semplicemente
-  * il nome del Player richiedente e lo stock in questione
-  */
-  type TransactionRequest: void {
-      .player: string
-      .stock: string
-  }
+type Receipt: void {
+    .stock: string
+    .kind: int //Può essere solo +1 o -1
+    .esito: bool
+    .price: double //E' positivo o negativo a seconda del tipo di transazione
+}
+
+/*
+* Struttura del tipo di dato TransactionRequest, contiene semplicemente
+* il nome del Player richiedente e lo stock in questione
+*/
+type TransactionRequest: void {
+    .player: string
+    .stock: string
+}
 
 interface PlayerToMarketCommunicationInterface {
     RequestResponse:
         registerPlayer( string )( PlayerStatus ) throws PlayerDuplicateException,
-        buyStock( TransactionRequest )( Receipt ) throws StockUnknownException ,
+        buyStock( TransactionRequest )( Receipt ) throws StockUnknownException,
         sellStock( TransactionRequest )( Receipt ) throws StockUnknownException,
         infoStockList( string )( infoStockStruct ),
         infoStockPrice( string )( double ),
-        infoStockAvaliability( string )( double )
+        infoStockAvailability( string )( double )
 }

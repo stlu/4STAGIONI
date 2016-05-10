@@ -117,8 +117,8 @@ main {
         randGenStock;
         infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
         println@Console("prezzo del: " + stockName + " = "  + responsePrice )();
-        infoStockAvaliability@PlayerToMarketCommunication( stockName )( responseAvaliability );
-        println@Console("disponibilità di: " + stockName + " = " + responseAvaliability )();
+        infoStockAvailability@PlayerToMarketCommunication( stockName )( responseAvailability );
+        println@Console("disponibilità di: " + stockName + " = " + responseAvailability )();
 
 
 // BOOM BOOM BOOM every 3 seconds

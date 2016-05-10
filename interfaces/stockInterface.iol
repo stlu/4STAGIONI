@@ -51,9 +51,9 @@ type StockVariationStruct: void {
 
 // connette StocksLauncher e StocksMng
 interface StocksLauncherInterface {
-    RequestResponse: discover( int )( void ) throws     StocksDiscovererFault( StocksDiscovererFaultType )
-                                                        IOException( IOExceptionType )
-                                                        FileNotFound( FileNotFoundType )
+    RequestResponse: discover( int )( void ) throws StocksDiscovererFault( StocksDiscovererFaultType )
+                                                    IOException( IOExceptionType )
+                                                    FileNotFound( FileNotFoundType )
 }
 
 // interfaccia di comunicazione con ciascuna stock instance dinamicamente allocata (ed embeddata) all'interno di StocksMng.ol
@@ -64,7 +64,7 @@ interface StockInstanceInterface {
                                                             MarketCloseException
     RequestResponse: buyStock( void )( string ) throws StockUnknownException
     RequestResponse: sellStock( void )( string ) throws StockUnknownException
-    RequestResponse: infoStockAvaliability( void )( int )
+    RequestResponse: infoStockAvailability( void )( int )
 }
 
 // from stocks to market
@@ -79,5 +79,5 @@ interface StockToMarketCommunicationInterface {
 interface MarketToStockCommunicationInterface {
     RequestResponse: buyStock( string )( string ) throws StockUnknownException
     RequestResponse: sellStock( string )( string ) throws StockUnknownException
-    RequestResponse: infoStockAvaliability( string )( int )
+    RequestResponse: infoStockAvailability( string )( int )
 }

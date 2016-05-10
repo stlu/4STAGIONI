@@ -81,19 +81,20 @@ dynamicStockList.( stockName )[ 0 ].location
     } ] { nullProcess }
 
 
-    /*
-    * Operazione infoStockAvaliability dell'interfaccia
-    * MarketToStockCommunicationInterface
-    *
-    * porta 8000 | Client: Market | Server: StocksMng
-    */
-    [ infoStockAvaliability( stockName )( responseAvaliability ) {
+/*
+* Operazione infoStockAvaliability dell'interfaccia
+* MarketToStockCommunicationInterface
+*
+* porta 8000 | Client: Market | Server: StocksMng
+*/
+    [ infoStockAvailability( stockName )( responseAvailability ) {
         if ( is_defined( global.dynamicStockList.( stockName )[ 0 ])) {
             StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
-            infoStockAvaliability@StockInstance()( responseAvaliability )
+            infoStockAvailability@StockInstance()( responseAvailability )
         } else {
-            // todo: meglio lanciare un fault...
-            responseAvaliability = -1
+
+// TODO: meglio lanciare un fault... ?
+            responseAvailability = -1
         }
     } ] { nullProcess }
 
@@ -109,8 +110,8 @@ qualora anche il nome non sia già presente, allora posso lanciare lo stock a ru
 */
     [ discover( interval )() {
 
-// todo: creare scope specifici ed effettuare install più dettagliati;
-// todo: affiancare procedure define per snellire la lettura del codice
+// TODO: creare scope specifici ed effettuare install più dettagliati;
+// TODO: affiancare procedure define per snellire la lettura del codice
         install(
                     // stock list up to date
                     StocksDiscovererFault => println@Console( stocksDiscovery.StocksDiscovererFault.msg )(),

@@ -52,23 +52,26 @@ main {
 
 // riceve in input la struttura dati di configurazione del nuovo stock (StockSubStruct)
     [ start( stockConfig )() {
-        install ( IOException => println@Console( "caught IOException :  Market is down" )() );
-        install ( MarketCloseException => println@Console( "caught MarketCloseException : Market is closed" )() );
+        
+        install (
+            IOException => println@Console( "caught IOException : Market is down" )(),
+            MarketCloseException => println@Console( "caught MarketCloseException : Market is closed" )()
+        );
 
 /*
         valueToPrettyString@StringUtils( stockConfig )( result );
         println@Console( result )();
 */
 
+// Verifica lo stato del Market
+        checkMarketStatus@StockToMarketCommunication()( server_conn );
+        if ( ! server_conn) throw( MarketCloseException );
+
         getProcessId@Runtime()( processId );
         if (DEBUG) println@Console( "start@Stock: ho appena avviato un client stock (" +
-                            stockConfig.static.name + ", processId: " + processId + ")")();
+                                    stockConfig.static.name + ", processId: " + processId + ")")();
 
         global.stockConfig << stockConfig;
-
-        // Verifica lo stato del Market
-        checkMarketStatus@StockToMarketCommunication()( server_conn );
-        if (!server_conn) throw( MarketCloseException );
 
 // avvio la procedura di registrazione dello stock sul market
 // compongo una piccola struttura dati con le uniche informazioni richieste dal market
@@ -90,10 +93,12 @@ main {
         if ( stockConfig.static.info.production.interval > 0 ) {
             production@Self()
         }
+
     } ] { nullProcess }
 
 
 
+// TODO: che tipo di risposta inviare al market? un boolean?
     [ buyStock()( response ) {
 
         getProcessId@Runtime()( processId );
@@ -117,6 +122,7 @@ main {
 
 
 // riflettere: possono presentarsi casistiche per le quali sia necessario sollevare un fault?
+// TODO: che tipo di risposta inviare al market? un boolean?
     [ sellStock()( response ) {
         getProcessId@Runtime()( processId );
 
@@ -130,11 +136,12 @@ main {
     } ] { nullProcess }
 
 
-    [ infoStockAvaliability()( responseAvaliability ) {
+
+    [ infoStockAvailability()( responseAvailability ) {
         getProcessId@Runtime()( processId );
 
         me -> global.stockConfig;
-        responseAvaliability = (me.dynamic.availability)
+        responseAvailability = me.dynamic.availability
 
     } ] { nullProcess }
 
@@ -149,11 +156,17 @@ main {
         me.wasting -> me.static.info.wasting;
         if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); ho appena avviato la procedura di WASTING" )();
 
+// Verifica lo stato del Market
+// effettuo tal verifica prima di eseguire qualsiasi altra istruzione poichè le modifiche apportate alle strutture dati
+// locali potrebbero non propagarsi al market
+        checkMarketStatus@StockToMarketCommunication()( server_conn );
+        if ( ! server_conn ) throw( IOException );
+
         while ( true ) {
 
             synchronized( syncToken ) {
 
-// la quantità residua è sufficiente per effettuare un deperimento
+// la quantità residua è sufficiente per effettuare un deperimento?
                 if ( me.dynamic.availability >= me.wasting.high ) {
                     lowerBound = me.wasting.low;
                     upperBound = me.wasting.high;
@@ -170,28 +183,25 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 
 // quantità deperita / quantità totale corrente
                     roundRequest = double( amount ) / double( me.dynamic.availability );
-// effettuo l'arrotondamento a 2 decimali
-                    roundRequest.decimals = 2;
+// effettuo l'arrotondamento a 5 decimali
+                    roundRequest.decimals = 5;
                     round@Math( roundRequest )( wastingRate );
 
 // decremento la quantità deperita alla quantità totale disponibile
                     oldAvailability = me.dynamic.availability;
                     me.dynamic.availability -= amount;
 
-// TODO: sicuri sia sufficiente una OneWay?
+// compongo la struttura dati da passare al market                    
                     stockWasting.name = me.static.name;
                     stockWasting.variation = wastingRate;
-
-                    // Verifica lo stato del Market
-                    checkMarketStatus@StockToMarketCommunication()( server_conn );
-                    if (!server_conn) throw( IOException );
-
+                    
+// TODO: sicuri sia sufficiente una OneWay?
                     destroyStock@StockToMarketCommunication( stockWasting );
 
                     if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId + "); WASTING di " + amount +
-                                        " (da " + oldAvailability + " a " + me.dynamic.availability + "); wastingRate di " +
-                                        roundRequest + " arrotondato a " + wastingRate + "; interval: " +
-                                        me.production.interval + " secondi" )()
+                                                " (da " + oldAvailability + " a " + me.dynamic.availability + "); wastingRate di " +
+                                                roundRequest + " arrotondato a " + wastingRate + "; interval: " +
+                                                me.production.interval + " secondi" )()
                 }
             };
 
@@ -210,6 +220,13 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
         if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId+ "); ho appena avviato l'operazione di PRODUCTION" )();
 
         while ( true ) {
+
+// Verifica lo stato del Market
+// effettuo tal verifica prima di eseguire qualsiasi altra istruzione poichè le modifiche apportate alle strutture dati
+// locali potrebbero non propagarsi al market
+            checkMarketStatus@StockToMarketCommunication()( server_conn );
+            if ( ! server_conn ) throw( IOException );
+
             synchronized( syncToken ) {
                 lowerBound = me.production.low;
                 upperBound = me.production.high;
@@ -227,28 +244,24 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 
 // quantità prodotta / quantità totale corrente
                 roundRequest = double( amount ) / double( me.dynamic.availability );
-// effettuo l'arrotondamento a 2 decimali
-                roundRequest.decimals = 2;
-                round@Math( roundRequest )( productionRate );
 
+// effettuo l'arrotondamento a 5 decimali
+                roundRequest.decimals = 5;
+                round@Math( roundRequest )( productionRate );
 // incremento la quantità totale disponibile della quantità prodotta
                 oldAvailability = me.dynamic.availability;
                 me.dynamic.availability += amount;
 
-// TODO: sicuri sia sufficiente una OneWay?
+// compongo la struttura dati da passare al market
                 stockProduction.name = me.static.name;
                 stockProduction.variation = productionRate;
-
-                // Verifica lo stato del Market
-                checkMarketStatus@StockToMarketCommunication()( server_conn );
-                if (!server_conn) throw( IOException );
-
+// TODO: sicuri sia sufficiente una OneWay?
                 addStock@StockToMarketCommunication( stockProduction );
 
                 if (DEBUG) println@Console( "Sono " + me.static.name + " (processId: " + processId + "); PRODUCTION di " + amount +
-                                    " (da " + oldAvailability + " a " + me.dynamic.availability + "); productionRate di " +
-                                    roundRequest + " arrotondato a " + productionRate + "; interval: " +
-                                    me.production.interval + " secondi" )()
+                                            " (da " + oldAvailability + " a " + me.dynamic.availability + "); productionRate di " +
+                                            roundRequest + " arrotondato a " + productionRate + "; interval: " +
+                                            me.production.interval + " secondi" )()
             };
 
             sleep@Time( me.production.interval * 1000 )()
