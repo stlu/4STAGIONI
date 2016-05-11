@@ -61,7 +61,7 @@ newStock.price
             global.registeredStocks.( newStock.name )[ 0 ].name = newStock.name;
             valueToPrettyString@StringUtils( newStock )( result );
             if (DEBUG) println@Console( "\nMarket@registerStock, newStock:" + result )();
-// TODO: meglio rispondere un void?            
+// TODO: meglio rispondere un void?
             response = "done"
         } else {
             /* esiste uno stock con lo stesso nome è già registrato al market
@@ -93,7 +93,7 @@ newStock.price
             newAccount << global.accounts.(incomingPlayer)
         //Caso in cui il player fosse già presente, non dovrebbe
         //verificarsi
-        } else {            
+        } else {
             throw( PlayerDuplicateException )
         }
     } ] {
@@ -159,7 +159,7 @@ newStock.price
                         priceDecrement = global.registeredStocks.(TransactionRequest.stock).price * (double( 1.0 ) / double( availability ));
                         // effettuo l'arrotondamento a 2 decimali
                         roundRequest = priceDecrement;
-                        roundRequest.decimals = 2;
+                        roundRequest.decimals = 5;
                         round@Math( roundRequest )( variazionePrezzo);
                         global.registeredStocks.(TransactionRequest.stock).price += priceDecrement;
                         if (DEBUG) println@Console(">>>BUYSTOCK incremento prezzo di: "  + variazionePrezzo )()
@@ -173,7 +173,7 @@ newStock.price
             }
         } else {
             // Caso in cui lo Stock richiesto dal Player non esista
-            throw( StockUnknownException )
+            throw( StockUnknownException , { .stockName = TransactionRequest.stock })
         }
     } ] { nullProcess }
 
@@ -207,7 +207,7 @@ newStock.price
                 priceIncrement = global.registeredStocks.(TransactionRequest.stock).price * (double( 1.0 ) / double(availability ));
                 // effettuo l'arrotondamento a 2 decimali
                 roundRequest = priceIncrement;
-                roundRequest.decimals = 2;
+                roundRequest.decimals = 5;
                 round@Math( roundRequest )( variazionePrezzo);
                 global.registeredStocks.(TransactionRequest.stock).price -= priceIncrement;
                 if (DEBUG) println@Console( ">>>SELLSTOCK decremento prezzo di: "  + variazionePrezzo )()
@@ -220,7 +220,7 @@ newStock.price
             }
         } else {
             // Caso in cui lo Stock richiesto dal Player non esista
-            throw( StockUnknownException )
+            throw( StockUnknownException , { .stockName = TransactionRequest.stock })
         }
     } ] { nullProcess }
 
@@ -233,16 +233,21 @@ newStock.price
     } ] { nullProcess }
 
     [ infoStockPrice( stockName )( responsePrice ) {
-        if (DEBUG) println@Console( ">>>infoStockPrice nome"  + stockName )();
+      if (DEBUG) println@Console( ">>>infoStockPrice nome "  + stockName )();
       if ( is_defined( global.registeredStocks.( stockName ) )) {
           responsePrice=global.registeredStocks.( stockName ).price
+      } else {
+            // Caso in cui lo Stock richiesto dal Player non esista
+            throw( StockUnknownException , { .stockName = stockName })
       }
     } ] { nullProcess }
 
-// TODO: intercettare StockUnknownException eventualmente rilanciato dallo stock o direttamente generato all'interno dell'operazione
     [ infoStockAvailability( stockName )( responseAvailability ) {
         if ( is_defined( global.registeredStocks.( stockName ) )) {
             infoStockAvailability@MarketToStockCommunication( stockName )( responseAvailability )
+        } else {
+            // Caso in cui lo Stock richiesto dal Player non esista
+            throw( StockUnknownException , { .stockName = stockName })
         }
     } ] { nullProcess }
 
@@ -263,7 +268,7 @@ newStock.price
 
 // riceve i quantitativi deperiti da parte di ciascun stock; le richieste sono strutturate secondo StockVariationStruct
 // (.name, .variation) definita all'interno di stockInterface.iol
-// si è deperità una quantità di stock, destroyStock rettifica il prezzo; 
+// si è deperità una quantità di stock, destroyStock rettifica il prezzo;
 // dato che la quantità è diminuita, il prezzo aumenta
     [ destroyStock( stockVariation )] {
 
@@ -286,7 +291,7 @@ newStock.price
                 me.price += priceIncrement;
 // effettuo l'arrotondamento a 2 decimali
                 roundRequest = me.price;
-                roundRequest.decimals = 2;
+                roundRequest.decimals = 5;
                 round@Math( roundRequest )( me.price );
 
                 if (DEBUG) println@Console( "destroyStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
@@ -324,7 +329,7 @@ newStock.price
                 me.price -= priceDecrement;
 // effettuo l'arrotondamento a 2 decimali
                 roundRequest = me.price;
-                roundRequest.decimals = 2;
+                roundRequest.decimals = 5;
                 round@Math( roundRequest )( me.price );
 
 // TODO
