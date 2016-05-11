@@ -13,7 +13,7 @@ include "math.iol"
 
 // le seguenti definizioni di interfaccia e outputPort consento un'invocazione "riflessiva"
 interface LocalInterface {
-    OneWay: registration( void ) // registrazine dello stock presso il market
+    OneWay: registration( void ) // registrazione dello stock presso il market
     OneWay: wasting( void ) // deperimento
     OneWay: production( void ) // produzione
 }
@@ -36,9 +36,9 @@ outputPort StockToMarketCommunication {
 
 init {
 // who I am? Imposto la location della output port Self per comunicare con "me stesso", ovvero con le operazioni esposte
-// in LocalInterface
+// in LocalInterface    
     getLocalLocation@Runtime()( Self.location );
-    connAttempt = 0
+    global.connAttempt = 0
 }
 
 define randGen {
@@ -56,14 +56,8 @@ define checkMarketStatus {
 
 // gestisce una visualizzazione user friendly dell'output, nonchè un delay sui tentativi ciclici di connessione al market
 define connAttemptTracking {
-    if (DEBUG) println@Console( "Connection attempt to Market failed (" + ++connAttempt + "); try again in 5 seconds" )();
-
-    while ( i < 5 ) {
-        print@Console( "." )();
-        sleep@Time( 1000 )();
-        i++
-    };
-    println@Console( "" )()
+    println@Console( global.stockConfig.static.name + ": connection attempt to Market failed (" + ++global.connAttempt + "); try again in 5 seconds" )();
+    sleep@Time( 5000 )()
 }
 
 execution { concurrent }
@@ -73,38 +67,44 @@ main {
 // registrazione dello stock sul market; intercetta eccezioni e gestisce i tentativi di connessione
     [ registration() ] {
 
-        install(
-            IOException => connAttemptTracking; registration@Self(),
-            MarketClosedException => println@Console( MARKET_CLOSED_EXCEPTION )();
-                                        registration@Self(),
-// rilancia a StocksMng il fault ricevuto dal market
+// ho inserito il seguente scope per garantire la stampa di registrationScope.StockDuplicatedException.stockName
+// TODO: soluzione più elegante?        
+        scope ( registrationScope ) {
+
+            install(
+// qualora il market sia down, si avvia una visualizzazione user friendly dei tentativi di connessione (cadenzati ogni 5 s)
+                IOException => connAttemptTracking; registration@Self(),
+// qualora lo stock tenti la registrazione ed il market sia chiuso, il recovery riesegue ciclicamente (via Self) 
+// l'operazione di registration con un delay di 5 secondi
+                MarketClosedException => println@Console( MARKET_CLOSED_EXCEPTION )();
+                                            sleep@Time( 5000 )(); registration@Self(),
+// rilancia a StocksMng il fault ricevuto dal market; no, per il momento gestisco tutto con questo install
 //            StockDuplicatedException => throw( StockDuplicatedException )
-// TODO, perchè non stampa stockName? (già controllato con --trace, market lo invia correttamente)
-            StockDuplicatedException => println@Console( STOCK_DUPLICATED_EXCEPTION +
-                                        "( " + registration.StockDuplicatedException.stockName + ")")()
+                StockDuplicatedException => println@Console( STOCK_DUPLICATED_EXCEPTION + 
+                                            " (" + registrationScope.StockDuplicatedException.stockName + ")")()
+            );
 
-        );
+            checkMarketStatus;
 
-        checkMarketStatus;
-
-        me -> global.stockConfig;
+            me -> global.stockConfig;
 
 // avvio la procedura di registrazione dello stock sul market
 // compongo una piccola struttura dati con le uniche informazioni richieste dal market
-        registrationStruct.name = me.static.name;
-        registrationStruct.price = me.static.info.price;
+            registrationStruct.name = me.static.name;
+            registrationStruct.price = me.static.info.price;
 
-        registerStock@StockToMarketCommunication( registrationStruct )();
+            registerStock@StockToMarketCommunication( registrationStruct )();
 
 // posso adesso avviare l'operazione di wasting (deperimento), ovvero un thread parallelo e indipendente (definito
 // come operazione all'interno del servizio Stock) dedicato allo svolgimento di tal operazione
-        if ( me.static.info.wasting.interval > 0 ) {
-            wasting@Self()
-        };
+            if ( me.static.info.wasting.interval > 0 ) {
+                wasting@Self()
+            };
 
 // idem per production (leggi sopra)
-        if ( me.info.production.interval > 0 ) {
-            production@Self()
+            if ( me.info.production.interval > 0 ) {
+                production@Self()
+            }
         }
     }
 
@@ -119,7 +119,7 @@ main {
         println@Console( result )();
 */
 
-        if ( DEBUG ) {
+        if ( DEBUG ) { 
             getProcessId@Runtime()( processId );
             println@Console( "start@Stock: ho appena avviato un client stock (" +
                                 stockConfig.static.name + ", processId: " + processId + ")")()
@@ -132,7 +132,7 @@ main {
 
 
 
-// TODO: che tipo di risposta inviare al market? un boolean?
+// TODO: che tipo di risposta inviare al market? un boolean?    
     [ buyStock()( response ) {
 
         getProcessId@Runtime()( processId );
@@ -147,7 +147,7 @@ main {
             } else {
 
 // TODO: lanciare un fault? Ad esempio un AvailabilityTerminatedException
-// potrebbe essere un'idea propagarla, passando per StocksMng e Market, sino ad un avviso al Player
+// potrebbe essere un'idea propagarla, passando per StocksMng e Market, sino ad un avviso al Player                
                 response = "Sono " + me.static.name + " (processId: " + processId+ "); la disponibilità è terminata"
             }
         }
@@ -188,8 +188,8 @@ main {
 // il market è down, errore irreversibile; ogni tentativo di recovery pulito equivarrebbe ad un lavoro mastodontico!
             IOException => println@Console( MARKET_DOWN_EXCEPTION )(),
             MarketClosedException => println@Console( MARKET_CLOSED_EXCEPTION )();
-                                    sleep@Time( 5000 )();
-                                    wasting@Self()
+                                        sleep@Time( 5000 )();
+                                        wasting@Self()
         );
 
         if ( DEBUG ) {
@@ -233,10 +233,10 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
                     oldAvailability = me.dynamic.availability;
                     me.dynamic.availability -= amount;
 
-// compongo la struttura dati da passare al market
+// compongo la struttura dati da passare al market                    
                     stockWasting.name = me.static.name;
                     stockWasting.variation = wastingRate;
-
+                    
 // TODO: sicuri sia sufficiente una OneWay?
                     destroyStock@StockToMarketCommunication( stockWasting );
 
@@ -259,12 +259,12 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 // OneWay riflessivo; operazione di produzione di nuove unità di stock
     [ production() ] {
         install(
-// il market è down, errore irreversibile; ogni tentativo di recovery pulito equivarrebbe ad un lavoro mastodontico!
+// il market è down, errore irreversibile; ogni tentativo di recovery pulito equivarrebbe ad un lavoro mastodontico!           
             IOException => println@Console( MARKET_DOWN_EXCEPTION )(),
             MarketClosedException => println@Console( MARKET_CLOSED_EXCEPTION )();
-                                    sleep@Time( 5000 )();
-                                    production@Self()
-        );
+                                        sleep@Time( 5000 )();
+                                        production@Self()
+        );        
 
         if ( DEBUG ) {
             getProcessId@Runtime()( processId );
