@@ -36,7 +36,7 @@ outputPort StockToMarketCommunication {
 
 init {
 // who I am? Imposto la location della output port Self per comunicare con "me stesso", ovvero con le operazioni esposte
-// in LocalInterface    
+// in LocalInterface
     getLocalLocation@Runtime()( Self.location );
     connAttempt = 0
 }
@@ -56,7 +56,7 @@ define checkMarketStatus {
 
 // gestisce una visualizzazione user friendly dell'output, nonchè un delay sui tentativi ciclici di connessione al market
 define connAttemptTracking {
-    println@Console( "Connection attempt to Market failed (" + ++connAttempt + "); try again in 5 seconds" )();
+    if (DEBUG) println@Console( "Connection attempt to Market failed (" + ++connAttempt + "); try again in 5 seconds" )();
 
     while ( i < 5 ) {
         print@Console( "." )();
@@ -79,8 +79,8 @@ main {
                                         registration@Self(),
 // rilancia a StocksMng il fault ricevuto dal market
 //            StockDuplicatedException => throw( StockDuplicatedException )
-// TODO, perchè non stampa stockName? (già controllato con --trace, market lo invia correttamente)                                        
-            StockDuplicatedException => println@Console( STOCK_DUPLICATED_EXCEPTION + 
+// TODO, perchè non stampa stockName? (già controllato con --trace, market lo invia correttamente)
+            StockDuplicatedException => println@Console( STOCK_DUPLICATED_EXCEPTION +
                                         "( " + registration.StockDuplicatedException.stockName + ")")()
 
         );
@@ -119,7 +119,7 @@ main {
         println@Console( result )();
 */
 
-        if ( DEBUG ) { 
+        if ( DEBUG ) {
             getProcessId@Runtime()( processId );
             println@Console( "start@Stock: ho appena avviato un client stock (" +
                                 stockConfig.static.name + ", processId: " + processId + ")")()
@@ -132,7 +132,7 @@ main {
 
 
 
-// TODO: che tipo di risposta inviare al market? un boolean?    
+// TODO: che tipo di risposta inviare al market? un boolean?
     [ buyStock()( response ) {
 
         getProcessId@Runtime()( processId );
@@ -147,7 +147,7 @@ main {
             } else {
 
 // TODO: lanciare un fault? Ad esempio un AvailabilityTerminatedException
-// potrebbe essere un'idea propagarla, passando per StocksMng e Market, sino ad un avviso al Player                
+// potrebbe essere un'idea propagarla, passando per StocksMng e Market, sino ad un avviso al Player
                 response = "Sono " + me.static.name + " (processId: " + processId+ "); la disponibilità è terminata"
             }
         }
@@ -233,10 +233,10 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
                     oldAvailability = me.dynamic.availability;
                     me.dynamic.availability -= amount;
 
-// compongo la struttura dati da passare al market                    
+// compongo la struttura dati da passare al market
                     stockWasting.name = me.static.name;
                     stockWasting.variation = wastingRate;
-                    
+
 // TODO: sicuri sia sufficiente una OneWay?
                     destroyStock@StockToMarketCommunication( stockWasting );
 
@@ -259,12 +259,12 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 // OneWay riflessivo; operazione di produzione di nuove unità di stock
     [ production() ] {
         install(
-// il market è down, errore irreversibile; ogni tentativo di recovery pulito equivarrebbe ad un lavoro mastodontico!           
+// il market è down, errore irreversibile; ogni tentativo di recovery pulito equivarrebbe ad un lavoro mastodontico!
             IOException => println@Console( MARKET_DOWN_EXCEPTION )(),
             MarketClosedException => println@Console( MARKET_CLOSED_EXCEPTION )();
                                     sleep@Time( 5000 )();
                                     production@Self()
-        );        
+        );
 
         if ( DEBUG ) {
             getProcessId@Runtime()( processId );
