@@ -35,6 +35,7 @@ type TransactionRequest: void {
     .stock: string
 }
 
+
 interface PlayerToMarketCommunicationInterface {
     RequestResponse:
         registerPlayer( string )( PlayerStatus ) throws PlayerDuplicateException,

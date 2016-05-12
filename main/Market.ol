@@ -60,6 +60,8 @@ newStock.price
             global.registeredStocks.( newStock.name )[ 0 ].price = newStock.price;
             global.registeredStocks.( newStock.name )[ 0 ].name = newStock.name;
             valueToPrettyString@StringUtils( newStock )( result );
+            getCurrentTimeMillis@Time(  )( T );
+            global.registeredStocks.( newStock.name )[ 0 ].time1=T;
             if (DEBUG) println@Console( "\nMarket@registerStock, newStock:" + result )();
 // TODO: meglio rispondere un void?
             response = "done"
@@ -141,6 +143,12 @@ newStock.price
                         //Decremento disponibilità Stock
                         buyStock@MarketToStockCommunication
                                     ( TransactionRequest.stock )( response );
+                        //intanto mi prendo il tempo ora per sicurezza, per poi calcolare il prezz0
+                        getCurrentTimeMillis@Time(  )( T2 );
+                        global.registeredStocks.( TransactionRequest.stock )[ 0 ].time2=T2;
+                        DELTA=long(global.registeredStocks.( TransactionRequest.stock )[ 0 ].time2)-long(global.registeredStocks.( TransactionRequest.stock )[ 0 ].time1);
+                        //print@Console(global.registeredStocks.( TransactionRequest.stock )[ 0 ].name + " , differenza " + " è: " + DELTA + "    ")();
+                        global.registeredStocks.( TransactionRequest.stock )[ 0 ].time1=  global.registeredStocks.( TransactionRequest.stock )[ 0 ].time2;
 
                         //Incremento quantità stock posseduta dal player
                         //nell'account presso il Market
@@ -157,12 +165,22 @@ newStock.price
 
                         //  incremento prezzo di 1/disponibilità,ora devi solo aggiungere il fattore tempo ;)
                         priceDecrement = global.registeredStocks.(TransactionRequest.stock).price * (double( 1.0 ) / double( availability ));
-                        // effettuo l'arrotondamento a 2 decimali
+                        if (DELTA<1000){
+                          priceDecrement += priceDecrement*0.0001
+                        };
+                        if (DELTA>1000||DELTA<2000){
+                            priceDecrement += priceDecrement*0.001
+                        };
+                        if (DELTA>=2000) {
+                          priceDecrement += priceDecrement*0.01
+                        };
+                        // effettuo l'arrotondamento a 5 decimali
                         roundRequest = priceDecrement;
                         roundRequest.decimals = 5;
                         round@Math( roundRequest )( variazionePrezzo);
-                        global.registeredStocks.(TransactionRequest.stock).price += priceDecrement;
-                        if (DEBUG) println@Console(">>>BUYSTOCK incremento prezzo di: "  + variazionePrezzo )()
+
+                        global.registeredStocks.(TransactionRequest.stock).price += variazionePrezzo;
+                        if (DEBUG)println@Console(">>>BUYSTOCK incremento prezzo di: "  + variazionePrezzo )()
                     };
                     with( Receipt ) {
                         .stock = TransactionRequest.stock;
