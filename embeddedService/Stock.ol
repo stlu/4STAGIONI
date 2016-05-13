@@ -36,7 +36,7 @@ outputPort StockToMarketCommunication {
 
 init {
 // who I am? Imposto la location della output port Self per comunicare con "me stesso", ovvero con le operazioni esposte
-// in LocalInterface    
+// in LocalInterface
     getLocalLocation@Runtime()( Self.location );
     global.connAttempt = 0
 }
@@ -56,7 +56,7 @@ define checkMarketStatus {
 
 // gestisce una visualizzazione user friendly dell'output, nonchè un delay sui tentativi ciclici di connessione al market
 define connAttemptTracking {
-    println@Console( global.stockConfig.static.name + ": connection attempt to Market failed (" + ++global.connAttempt + "); try again in 5 seconds" )();
+    if ( DEBUG ) println@Console( global.stockConfig.static.name + ": connection attempt to Market failed (" + ++global.connAttempt + "); try again in 5 seconds" )();
     sleep@Time( 5000 )()
 }
 
@@ -68,19 +68,19 @@ main {
     [ registration() ] {
 
 // ho inserito il seguente scope per garantire la stampa di registrationScope.StockDuplicatedException.stockName
-// TODO: soluzione più elegante?        
+// TODO: soluzione più elegante?
         scope ( registrationScope ) {
 
             install(
 // qualora il market sia down, si avvia una visualizzazione user friendly dei tentativi di connessione (cadenzati ogni 5 s)
                 IOException => connAttemptTracking; registration@Self(),
-// qualora lo stock tenti la registrazione ed il market sia chiuso, il recovery riesegue ciclicamente (via Self) 
+// qualora lo stock tenti la registrazione ed il market sia chiuso, il recovery riesegue ciclicamente (via Self)
 // l'operazione di registration con un delay di 5 secondi
                 MarketClosedException => println@Console( MARKET_CLOSED_EXCEPTION )();
                                             sleep@Time( 5000 )(); registration@Self(),
 // rilancia a StocksMng il fault ricevuto dal market; no, per il momento gestisco tutto con questo install
 //            StockDuplicatedException => throw( StockDuplicatedException )
-                StockDuplicatedException => println@Console( STOCK_DUPLICATED_EXCEPTION + 
+                StockDuplicatedException => println@Console( STOCK_DUPLICATED_EXCEPTION +
                                             " (" + registrationScope.StockDuplicatedException.stockName + ")")()
             );
 
@@ -119,7 +119,7 @@ main {
         println@Console( result )();
 */
 
-        if ( DEBUG ) { 
+        if ( DEBUG ) {
             getProcessId@Runtime()( processId );
             println@Console( "start@Stock: ho appena avviato un client stock (" +
                                 stockConfig.static.name + ", processId: " + processId + ")")()
@@ -132,7 +132,7 @@ main {
 
 
 
-// TODO: che tipo di risposta inviare al market? un boolean?    
+// TODO: che tipo di risposta inviare al market? un boolean?
     [ buyStock()( response ) {
 
         getProcessId@Runtime()( processId );
@@ -143,12 +143,14 @@ main {
         synchronized( syncToken ) {
             if ( me.dynamic.availability > 0 ) {
                 me.dynamic.availability--;
-                response = "Sono " + me.static.name + " (processId: " + processId+ "); decremento la disponibilità di stock"
+                if (DEBUG) println@Console("Sono " + me.static.name + " (processId: " + processId+ "); decremento la disponibilità di stock")();
+                response = true
             } else {
 
 // TODO: lanciare un fault? Ad esempio un AvailabilityTerminatedException
-// potrebbe essere un'idea propagarla, passando per StocksMng e Market, sino ad un avviso al Player                
-                response = "Sono " + me.static.name + " (processId: " + processId+ "); la disponibilità è terminata"
+// potrebbe essere un'idea propagarla, passando per StocksMng e Market, sino ad un avviso al Player
+                if (DEBUG) println@Console("Sono " + me.static.name + " (processId: " + processId+ "); la disponibilità è terminata")();
+                response = false
             }
         }
 
@@ -166,7 +168,8 @@ main {
 
         synchronized( syncToken ) {
             me.dynamic.availability++;
-            response = "Sono " + me.static.name + " (processId: " + processId+ "); incremento la disponibilità di stock"
+            if (DEBUG) println@Console("Sono " + me.static.name + " (processId: " + processId+ "); incremento la disponibilità di stock")();
+            response = true
         }
     } ] { nullProcess }
 
@@ -233,10 +236,10 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
                     oldAvailability = me.dynamic.availability;
                     me.dynamic.availability -= amount;
 
-// compongo la struttura dati da passare al market                    
+// compongo la struttura dati da passare al market
                     stockWasting.name = me.static.name;
                     stockWasting.variation = wastingRate;
-                    
+
 // TODO: sicuri sia sufficiente una OneWay?
                     destroyStock@StockToMarketCommunication( stockWasting );
 
@@ -259,12 +262,12 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 // OneWay riflessivo; operazione di produzione di nuove unità di stock
     [ production() ] {
         install(
-// il market è down, errore irreversibile; ogni tentativo di recovery pulito equivarrebbe ad un lavoro mastodontico!           
+// il market è down, errore irreversibile; ogni tentativo di recovery pulito equivarrebbe ad un lavoro mastodontico!
             IOException => println@Console( MARKET_DOWN_EXCEPTION )(),
             MarketClosedException => println@Console( MARKET_CLOSED_EXCEPTION )();
                                         sleep@Time( 5000 )();
                                         production@Self()
-        );        
+        );
 
         if ( DEBUG ) {
             getProcessId@Runtime()( processId );
