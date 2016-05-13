@@ -1,3 +1,17 @@
+2016_05_13 Stefania
+- Modificato response della buyStock e sellStock per fare restituire un bool e non string per verificare dal 
+ chiamante se l'operazione è andata a buon fine (stockinterfdace.iol e Market.ol)
+- Market.ol il player può vendere solo gli stock che possiede, aggiunto controllo in tal senso
+            il player può acquistare solo stock con disponibilità > 0 
+
+2016_05_11 Pardox
+- In generale ho agito lato Stock -> StocksMng -> Market
+- All'interno di Stock.ol, inserita gestione "intelligente" dei tentativi di connessione al market
+    all'avvio di un'istanza dello stock; potete verificare lanciando StocksLauncher.ol prima di Market.ol.
+- Centralizzati i messaggi delle eccezioni implementate da stlu all'interno di constants
+- Verificati i vari "percorsi" delle eccezioni; lato Stock -> StocksMng -> Market siamo a buon punto;
+    aggiornata stockInterface rispetto ai vari throws.
+
 2016_05_09 Stefania
 - constants.iol 
 	inserita costante DEBUG che se true attiva stampe di controllo (di default è false)
@@ -71,14 +85,4 @@
     e il salvataggio del suo status
 -Create strutture dati apposite in playerInterface.iol
 -Creato questo txt perchè i commit non mi soddisfano = )
-
-
-2016_05_11 Pardox
-- In generale ho agito lato Stock -> StocksMng -> Market
-- All'interno di Stock.ol, inserita gestione "intelligente" dei tentativi di connessione al market
-    all'avvio di un'istanza dello stock; potete verificare lanciando StocksLauncher.ol prima di Market.ol.
-- Centralizzati i messaggi delle eccezioni implementate da stlu all'interno di constants
-- Verificati i vari "percorsi" delle eccezioni; lato Stock -> StocksMng -> Market siamo a buon punto;
-    aggiornata stockInterface rispetto ai vari throws.
-
 

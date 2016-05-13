@@ -60,27 +60,29 @@ interface StocksLauncherInterface {
 
 // interfaccia di comunicazione con ciascuna stock instance dinamicamente allocata (ed embeddata) all'interno di StocksMng.ol
 interface StockInstanceInterface {
-// TODO: si vedano gli specifici todo all'interno di Stock.ol in relazione alle operazioni indicate 
-// (in sintesi dobbiam capire cosa / se / come struttura la response)    
+// TODO: si vedano gli specifici todo all'interno di Stock.ol in relazione alle operazioni indicate
+// (in sintesi dobbiam capire cosa / se / come struttura la response)
+// messo boolean come response
     RequestResponse: start( StockSubStruct )( void ) throws StockDuplicatedException( StockNameExceptionType )
-    RequestResponse: buyStock( void )( string ) throws StockUnknownException( StockNameExceptionType )
-    RequestResponse: sellStock( void )( string ) throws StockUnknownException( StockNameExceptionType )
+    RequestResponse: buyStock( void )( bool ) throws StockUnknownException( StockNameExceptionType )
+    RequestResponse: sellStock( void )( bool ) throws StockUnknownException( StockNameExceptionType )
     RequestResponse: infoStockAvailability( void )( int ) throws StockUnknownException( StockNameExceptionType )
 }
 
 // from stocks to market
 interface StockToMarketCommunicationInterface {
     RequestResponse: registerStock( StockRegistrationStruct )( string ) throws StockDuplicatedException( StockNameExceptionType )
-// TODO: sicuri non sia necessaria una RequestResponse?  
+// TODO: sicuri non sia necessaria una RequestResponse ?
     OneWay: addStock( StockVariationStruct )
     OneWay: destroyStock( StockVariationStruct )
 }
 
 // from market to stocks (passando per StocksMng.ol)
 interface MarketToStockCommunicationInterface {
-// TODO: si vedano gli specifici todo all'interno di Stock.ol in relazione alle operazioni indicate 
+// TODO: si vedano gli specifici todo all'interno di Stock.ol in relazione alle operazioni indicate
 // (in sintesi dobbiam capire cosa / se / come struttura la response)
-    RequestResponse: buyStock( string )( string ) throws StockUnknownException( StockNameExceptionType )
-    RequestResponse: sellStock( string )( string ) throws StockUnknownException( StockNameExceptionType )
+// messo boolean come response
+    RequestResponse: buyStock( string )( bool ) throws StockUnknownException( StockNameExceptionType )
+    RequestResponse: sellStock( string )( bool ) throws StockUnknownException( StockNameExceptionType )
     RequestResponse: infoStockAvailability( string )( int )
 }
