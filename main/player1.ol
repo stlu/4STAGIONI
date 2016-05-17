@@ -1,6 +1,6 @@
 include "../config/constants.iol"
+include "../interfaces/commonInterface.iol"
 include "../interfaces/playerInterface.iol"
-include "../interfaces/marketInterface.iol"
 
 include "console.iol"
 include "time.iol"
@@ -16,7 +16,7 @@ outputPort PlayerToMarketCommunication {
 /*
  * Il valore della costante viene sovrascritto lanciando Player.ol con:
  *
- *      jolie -C Player_Name=\"Johnny\" Player.ol
+     *  jolie -C Player_Name=\"Johnny\" Player.ol
  */
 constants {
     Player_Name = "Default Player"
@@ -26,9 +26,18 @@ execution { single }
 
 // La sezione init deve essere prima di ogni define
 init {
-  install ( IOException => println@Console( "caught IOException :  Server is down" )() );
-  install ( PlayerDuplicateException => println@Console( "caught PlayerDuplicateException : Player already exists" )() );
-  install ( StockUnknownException => println@Console( "caught StockUnknownException : Stock not found" )() )
+// così come suggerito da Stefania, dichiaramo tutte le eccezioni nell'init
+// (una dichiarazione cumulativa per tutti i throw invocati in ciascuna operazione);
+// qualora sia invece necessario intraprendere comportamenti specifici è bene definire l'install all'interno dello scope
+    scope( commonFaultScope ) {
+        install(    
+                IOException => println@Console( MARKET_DOWN_EXCEPTION )(),
+                PlayerDuplicatedException => println@Console( PLAYER_DUPLICATED_EXCEPTION + 
+                                              " (" + commonFaultScope.PlayerDuplicatedException.playerName + ")")(),
+                StockUnknownException => println@Console( PLAYER_DUPLICATED_EXCEPTION + 
+                                              " (" + commonFaultScope.StockUnknownException.stockName + ")")()
+              )
+    }
 }
 
 //Il Player aggiorna il suo status (liquidità e stock posseduti) in funzione
@@ -73,17 +82,15 @@ define randGenAction {
     random@Math()( rand );
 // genera un valore random, estremi inclusi
     if (rand<0.2){
-      action=1
+        action=1
     }else if (rand<0.4){
-      action=2
+        action=2
     }else if(rand<0.6){
-      action=3
-    }
-    else if(rand<0.8){
-      action=4
-    }
-    else if(rand<1){
-      action=5
+        action=3
+    }else if(rand<0.8){
+        action=4
+    }else if(rand<1){
+        action=5
     }
 }
 

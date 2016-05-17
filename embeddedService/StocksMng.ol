@@ -1,5 +1,6 @@
 include "../config/constants.iol"
 include "file.iol"
+include "../interfaces/commonInterface.iol"
 include "../interfaces/stockInterface.iol"
 
 include "console.iol"
@@ -8,6 +9,7 @@ include "xml_utils.iol"
 
 include "runtime.iol"
 include "time.iol"
+
 
 
 // embedded by StocksLauncher
@@ -28,6 +30,18 @@ inputPort MarketToStockCommunication {
     Location: "socket://localhost:8000"
     Protocol: sodep
     Interfaces: MarketToStockCommunicationInterface
+}
+
+
+
+init {
+// così come suggerito da Stefania, dichiaramo tutte le eccezioni nell'init
+// (una dichiarazione cumulativa per tutti i throw invocati in ciascuna operazione);
+// qualora sia invece necessario intraprendere comportamenti specifici è bene definire l'install all'interno dello scope
+// (nel nostro caso nell'operazione discover è previsto uno specifico install)
+    install(
+                StockUnknownException => throw( StockUnknownException )
+            )
 }
 
 
@@ -56,10 +70,10 @@ dynamicStockList.( stockName )[ 0 ].location
         if ( is_defined( global.dynamicStockList.( stockName )[ 0 ] )) {
 // per comunicare con la specifica istanza, imposto a runtime la location della outputPort StockInstance
             StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
-// posso adesso avviare l'operazione sullo specifico stock
+// posso adesso avviare l'operazione sullo specifico stock: verrà eseguito il forward della response ricevuta
             buyStock@StockInstance()( response )
         } else {
-// Lo stock non esiste
+// lo stock richiesto non esiste, lancia un fault all'invocante invocante (buyStock@Market)
             throw( StockUnknownException, { .stockName = stockName } )
         }
 
@@ -118,10 +132,11 @@ qualora anche il nome non sia già presente, allora posso lanciare lo stock a ru
 // TODO: verificare tutti i seguenti fault                    
 // stock list up to date
                     StocksDiscovererException => println@Console( discover.StocksDiscovererException.message )(),
-
+                  
                     IOException => throw( IOException ),
                     FileNotFound => throw( FileNotFound ),
 
+// TODO: gestire all'interno dello scope la seguente exception; è relativa ad un thread non correttamente lanciato;                    
                     RuntimeExceptionType => throw( RuntimeExceptionType )
 
 // TODO, uno stock con lo stesso nome è già registrato sul market; caso praticamente impossibile dato che è
@@ -192,7 +207,7 @@ indicato; ricorda che non è incluso il nodo radice <stock>
 
 
                             if (DEBUG) println@Console( "StocksMng@discover: avvia una nuova istanza di stock (" +
-                                                stockName + " / " + currentFile + ")" )();
+                                                        stockName + " / " + currentFile + ")" )();
 // lancia una nuova istanza dello stock
                             embedInfo.type = "Jolie";
                             embedInfo.filepath = "Stock.ol";

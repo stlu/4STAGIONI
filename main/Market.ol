@@ -1,8 +1,8 @@
 include "../config/constants.iol"
 include "file.iol"
+include "../interfaces/commonInterface.iol"
 include "../interfaces/stockInterface.iol"
 include "../interfaces/playerInterface.iol"
-include "../interfaces/marketInterface.iol"
 
 include "console.iol"
 include "time.iol"
@@ -29,11 +29,23 @@ inputPort PlayerToMarketCommunication { // utilizzata dai player per inviare ric
 }
 
 
-execution { concurrent }
 
 init {
-    global.status = true // se true il Market è aperto
+    global.status = true; // se true il Market è aperto
+
+// così come suggerito da Stefania, dichiaramo tutte le eccezioni nell'init
+// (una dichiarazione cumulativa per tutti i throw invocati in ciascuna operazione);
+// qualora sia invece necessario intraprendere comportamenti specifici è bene definire l'install all'interno dello scope
+    install(
+                StockDuplicatedException => throw( StockDuplicatedException ),
+                PlayerDuplicatedException => throw( PlayerDuplicatedException ),
+                PlayerUnknownException => throw( PlayerUnknownException )
+            )
 }
+
+
+
+execution { concurrent }
 
 main {
 
@@ -52,19 +64,25 @@ newStock.price
 
 // operazione esposta agli stocks sulla porta 8001, definita nell'interfaccia StockToMarketCommunicationInterface
     [ registerStock( newStock )( response ) {
-// rilancia il fault all'operazione invocante, ovvero register@Stock
-        install( StockDuplicatedException => throw( StockDuplicatedException ));
-
 // dynamic lookup rispetto alla stringa newStock.name
         if ( ! is_defined( global.registeredStocks.( newStock.name )[ 0 ] )) {
+
+            if ( DEBUG ) { 
+                valueToPrettyString@StringUtils( newStock )( result );
+                println@Console( "\nMarket@registerStock, newStock:" + result )()
+            };
+
             global.registeredStocks.( newStock.name )[ 0 ].price = newStock.price;
             global.registeredStocks.( newStock.name )[ 0 ].name = newStock.name;
-            valueToPrettyString@StringUtils( newStock )( result );
+
+// TODO: timer correlato all'algoritmo di pricing; funziona correttamente?
             getCurrentTimeMillis@Time(  )( T );
-            global.registeredStocks.( newStock.name )[ 0 ].time1=T;
-            if (DEBUG) println@Console( "\nMarket@registerStock, newStock:" + result )();
-// TODO: meglio rispondere un void?
-            response = "done"
+            global.registeredStocks.( newStock.name )[ 0 ].time1 = T;
+
+// TODO: qualora l'operazione sia andata a buon fine risponde true; ma l'operazione è chiaramente andata a buon
+// fine, altrimenti viene lanciato un fault. Questa response potrebbe essere superflua.
+// si veda registerStock@StockToMarketCommunication all'interno di Stock.ol (ovvero l'invocante)
+            response = true
         } else {
             /* esiste uno stock con lo stesso nome è già registrato al market
              * (caso praticamente impossibile visto che StocksDiscoverer presta
@@ -85,22 +103,25 @@ newStock.price
 * dichiarata da nessuna parte, viene semplicemente creata quando arriva il
 * primo player.
 */
-//Richiesta in entrata dal Player
-    [ registerPlayer (incomingPlayer)(newAccount) {
+// Richiesta in entrata dal Player
+    [ registerPlayer( incomingPlayer )( newAccount ) {
 
-        //Caso in cui il Player è nuovo
+        // Caso in cui il Player è nuovo
         if ( ! is_defined( global.accounts.(incomingPlayer) )) {
             global.accounts.(incomingPlayer) = incomingPlayer;
             global.accounts.(incomingPlayer).liquidity = 100;
             newAccount << global.accounts.(incomingPlayer)
-        //Caso in cui il player fosse già presente, non dovrebbe
-        //verificarsi
+
+        // Caso in cui il player sia già presente, non dovrebbe
+        // verificarsi; tuttavia intercetto e rilancio un'eventuale eccezione
         } else {
-            throw( PlayerDuplicateException )
+
+// TODO: da intercettare all'interno del player            
+            throw( PlayerDuplicatedException, { .playerName = incomingPlayer })
         }
+
     } ] {
-        if (DEBUG) println@Console( "\nregisterPlayer@Market, incomingPlayer: "
-        + incomingPlayer )()
+        if ( DEBUG ) println@Console( "\nregisterPlayer@Market, incomingPlayer: " + incomingPlayer )()
     }
 
 /*
@@ -111,64 +132,69 @@ newStock.price
  * 1) Verificare disponibilità denaro del Player (locale)
  * 2) Verificare disponibilità Stock (deve chiedere allo Stock)
  */
-    [ buyStock( TransactionRequest )( Receipt ) {
+    [ buyStock( transactionRequest )( receipt ) {
         /* 1) */
-        if ( is_defined( global.registeredStocks.(TransactionRequest.stock))) {
+
+// TODO: verificare che il player sia correttamente registrato al market, altrimenti lanciare il seguente fault:
+// throw( PlayerUnknownException , { .playerName = transactionRequest.player })
+
+        if ( is_defined( global.registeredStocks.(transactionRequest.stock))) {
 
             if (DEBUG) {
-                println@Console( ">>>BUYSTOCK " + TransactionRequest.stock +">>> PLAYER: "+ TransactionRequest.player +
-                    ">>> PLAYER cash: " + global.accounts.(TransactionRequest.player).liquidity +
-                    ">>> PREZZO Stock: " + global.registeredStocks.(TransactionRequest.stock).price )()
+                println@Console( ">>>BUYSTOCK " + transactionRequest.stock +">>> PLAYER: "+ transactionRequest.player +
+                    ">>> PLAYER cash: " + global.accounts.(transactionRequest.player).liquidity +
+                    ">>> PREZZO Stock: " + global.registeredStocks.(transactionRequest.stock).price )()
             };
 
-            // Inizializza la struttura della Receipt
-            with( Receipt ) {
-                .stock = TransactionRequest.stock;
+            // Inizializza la struttura della receipt
+            with( receipt ) {
+                .stock = transactionRequest.stock;
                 .kind = 1;
                 .esito = false;
-                .price = global.registeredStocks.(TransactionRequest.stock).price
+                .price = global.registeredStocks.(transactionRequest.stock).price
             };
-            if ( global.accounts.(TransactionRequest.player).liquidity
+            if ( global.accounts.(transactionRequest.player).liquidity
                 >=
-                global.registeredStocks.(TransactionRequest.stock).price ) {
+                global.registeredStocks.(transactionRequest.stock).price ) {
 
                 /*QUESTO PUNTO è CRITICO, STO INSERENDO UN SYNC AD UN
                   LIVELLO PIUTTOSTO ALTO, DOBBIAMO PARLARNE*/
                 synchronized ( atomicamente ) {
                     /* 2) */
-                    infoStockAvailability@MarketToStockCommunication
-                    ( TransactionRequest.stock )( availability );
+                    infoStockAvailability@MarketToStockCommunication( transactionRequest.stock )( availability );
                     if (DEBUG) println@Console( ">>>BUYSTOCK availability " + availability )();
 
                     if ( availability > 0 ) {
-                        //Decremento disponibilità Stock
-                        buyStock@MarketToStockCommunication
-                                    ( TransactionRequest.stock )( response );
+                        // Decremento disponibilità Stock
 
-                        // Se l'operazione di buyStock è andata a buon fine effettua anceh le altre operazioni
+// TODO: può generare una StockUnknownException; da effettuare il relativo install e, eventualmente,
+// rilanciare il fault al player. Risponde con un boolean TRUE qualora l'operazione sia andata a buon fine.
+                        buyStock@MarketToStockCommunication( transactionRequest.stock )( response );
+
+                        // Se l'operazione di buyStock è andata a buon fine effettua anche le altre operazioni
                         if (response == true) {
                             //intanto mi prendo il tempo ora per sicurezza, per poi calcolare il prezz0
                             getCurrentTimeMillis@Time(  )( T2 );
-                            global.registeredStocks.( TransactionRequest.stock )[ 0 ].time2=T2;
-                            DELTA=long(global.registeredStocks.( TransactionRequest.stock )[ 0 ].time2)-long(global.registeredStocks.( TransactionRequest.stock )[ 0 ].time1);
-                            //print@Console(global.registeredStocks.( TransactionRequest.stock )[ 0 ].name + " , differenza " + " è: " + DELTA + "    ")();
-                            global.registeredStocks.( TransactionRequest.stock )[ 0 ].time1=  global.registeredStocks.( TransactionRequest.stock )[ 0 ].time2;
+                            global.registeredStocks.( transactionRequest.stock )[ 0 ].time2=T2;
+                            DELTA=long(global.registeredStocks.( transactionRequest.stock )[ 0 ].time2)-long(global.registeredStocks.( transactionRequest.stock )[ 0 ].time1);
+                            //print@Console(global.registeredStocks.( transactionRequest.stock )[ 0 ].name + " , differenza " + " è: " + DELTA + "    ")();
+                            global.registeredStocks.( transactionRequest.stock )[ 0 ].time1=  global.registeredStocks.( transactionRequest.stock )[ 0 ].time2;
 
                             //Incremento quantità stock posseduta dal player
                             //nell'account presso il Market
-                            global.accounts.(TransactionRequest.player).ownedStock.
-                                            (TransactionRequest.stock).quantity++;
+                            global.accounts.(transactionRequest.player).ownedStock.
+                                            (transactionRequest.stock).quantity++;
 
                             //Decremento denaro nell'account del player presso il
                             //Market
-                            global.accounts.(TransactionRequest.player).liquidity
+                            global.accounts.(transactionRequest.player).liquidity
                             -=
-                            global.registeredStocks.(TransactionRequest.stock).price;
-                            Receipt.price = 0 - global.registeredStocks.
-                                                (TransactionRequest.stock).price;
+                            global.registeredStocks.(transactionRequest.stock).price;
+                            receipt.price = 0 - global.registeredStocks.
+                                                (transactionRequest.stock).price;
 
                             //  incremento prezzo di 1/disponibilità,ora devi solo aggiungere il fattore tempo ;)
-                            priceDecrement = global.registeredStocks.(TransactionRequest.stock).price * (double( 1.0 ) / double( availability ));
+                            priceDecrement = global.registeredStocks.(transactionRequest.stock).price * (double( 1.0 ) / double( availability ));
                             if (DELTA<1000){
                               priceDecrement += priceDecrement*0.0001
                             };
@@ -183,10 +209,10 @@ newStock.price
                             roundRequest.decimals = 5;
                             round@Math( roundRequest )( variazionePrezzo);
 
-                            global.registeredStocks.(TransactionRequest.stock).price += variazionePrezzo;
+                            global.registeredStocks.(transactionRequest.stock).price += variazionePrezzo;
                             if (DEBUG) println@Console(">>>BUYSTOCK incremento prezzo di: "  + variazionePrezzo )();
-                            with( Receipt ) {
-                                .stock = TransactionRequest.stock;
+                            with( receipt ) {
+                                .stock = transactionRequest.stock;
                                 .kind = 1;
                                 .esito = true
                             }
@@ -196,7 +222,7 @@ newStock.price
             }
         } else {
             // Caso in cui lo Stock richiesto dal Player non esista
-            throw( StockUnknownException , { .stockName = TransactionRequest.stock })
+            throw( StockUnknownException , { .stockName = transactionRequest.stock })
         }
     } ] { nullProcess }
 
@@ -204,52 +230,56 @@ newStock.price
  * Operazione sellStock dell'interfaccia PlayerToMarketCommunicationInterface
  * porta 8000 | Client: Player | Server: Market
  */
-    [ sellStock( TransactionRequest )( Receipt ) {
-        if ( is_defined( global.registeredStocks.(TransactionRequest.stock))) {
-            if (DEBUG) println@Console( ">>>SELLSTOCK Stock " + TransactionRequest.stock)();
+    [ sellStock( transactionRequest )( receipt ) {
 
-            // Inizializza la struttura della Receipt
-            with( Receipt ) {
-                .stock = TransactionRequest.stock;
+// TODO: verificare che il player sia correttamente registrato al market, altrimenti lanciare il seguente fault:
+// throw( PlayerUnknownException , { .playerName = transactionRequest.player })
+
+        if ( is_defined( global.registeredStocks.(transactionRequest.stock))) {
+            if (DEBUG) println@Console( ">>>SELLSTOCK Stock " + transactionRequest.stock)();
+
+            // Inizializza la struttura della receipt
+            with( receipt ) {
+                .stock = transactionRequest.stock;
                 .kind = 1;
                 .esito = false;
-                .price = global.registeredStocks.(TransactionRequest.stock).price
+                .price = global.registeredStocks.(transactionRequest.stock).price
             };
             /*QUESTO PUNTO è CRITICO, STO INSERENDO UN SYNC AD UN
               LIVELLO PIUTTOSTO ALTO, DOBBIAMO PARLARNE*/
             infoStockAvailability@MarketToStockCommunication
-            ( TransactionRequest.stock )( availability );
+            ( transactionRequest.stock )( availability );
 
             // Se Player possiede lo stock lo mette in vendita
-            if (global.accounts.(TransactionRequest.player).ownedStock.
-                                            (TransactionRequest.stock).quantity > 0) {
+            if (global.accounts.(transactionRequest.player).ownedStock.
+                                            (transactionRequest.stock).quantity > 0) {
                 synchronized ( atomicamente ) {
                     //Incremento disponibilità Stock
-                    sellStock@MarketToStockCommunication( TransactionRequest.stock )( response );
+                    sellStock@MarketToStockCommunication( transactionRequest.stock )( response );
 
                     // Se l'operazione di sellStock è andata a buon fine effettua anche le altre operazioni
                     if (response == true) {
                         //Decremento quantità stock posseduta dal player nell'account
                         //presso il Market
-                        global.accounts.(TransactionRequest.player).ownedStock.
-                                                (TransactionRequest.stock).quantity--;
+                        global.accounts.(transactionRequest.player).ownedStock.
+                                                (transactionRequest.stock).quantity--;
                         //Incremento denaro nell'account del player presso il Market
-                        global.accounts.(TransactionRequest.player).liquidity
+                        global.accounts.(transactionRequest.player).liquidity
                         +=
-                        global.registeredStocks.(TransactionRequest.stock).price;
-                        Receipt.price = global.registeredStocks.(TransactionRequest.stock).price;
+                        global.registeredStocks.(transactionRequest.stock).price;
+                        receipt.price = global.registeredStocks.(transactionRequest.stock).price;
 
 
                         //  decremento prezzo di 1/disponibilità,ora devi solo aggiungere il fattore tempo ;)
-                        priceIncrement = global.registeredStocks.(TransactionRequest.stock).price * (double( 1.0 ) / double(availability ));
+                        priceIncrement = global.registeredStocks.(transactionRequest.stock).price * (double( 1.0 ) / double(availability ));
                         // effettuo l'arrotondamento a 2 decimali
                         roundRequest = priceIncrement;
                         roundRequest.decimals = 5;
                         round@Math( roundRequest )( variazionePrezzo);
-                        global.registeredStocks.(TransactionRequest.stock).price -= priceIncrement;
+                        global.registeredStocks.(transactionRequest.stock).price -= priceIncrement;
                         if (DEBUG) println@Console( ">>>SELLSTOCK decremento prezzo di: "  + variazionePrezzo )();
-                        with( Receipt ) {
-                            .stock = TransactionRequest.stock;
+                        with( receipt ) {
+                            .stock = transactionRequest.stock;
                             .kind = -1;
                             .esito = true
                         }
@@ -258,34 +288,38 @@ newStock.price
             } // quantity > 0
         } else {
             // Caso in cui lo Stock richiesto dal Player non esista
-            throw( StockUnknownException , { .stockName = TransactionRequest.stock })
+            throw( StockUnknownException , { .stockName = transactionRequest.stock })
         }
     } ] { nullProcess }
 
+// operazione invocata dal Player; restituisce la lista degli stock registrati, attualmente presenti
     [ infoStockList( info )( responseInfo ) {
-        i=0;
+        i = 0;
         foreach ( stockName : global.registeredStocks ) {
-            responseInfo.name[i]=string( global.registeredStocks.(stockName).name);
-            i=i+1
+            responseInfo.name[i] = global.registeredStocks.(stockName).name;
+            i = i + 1
         }
     } ] { nullProcess }
 
+// operazione invocata dal Player; restituisce il prezzo corrente di uno specifico stock (double)
     [ infoStockPrice( stockName )( responsePrice ) {
-      if (DEBUG) println@Console( ">>>infoStockPrice nome "  + stockName )();
-      if ( is_defined( global.registeredStocks.( stockName ) )) {
-          responsePrice=global.registeredStocks.( stockName ).price
-      } else {
+        if ( DEBUG ) println@Console( ">>>infoStockPrice nome "  + stockName )();
+
+        if ( is_defined( global.registeredStocks.( stockName ) )) {
+            responsePrice = global.registeredStocks.( stockName ).price
+        } else {
             // Caso in cui lo Stock richiesto dal Player non esista
-            throw( StockUnknownException , { .stockName = stockName })
-      }
+            throw( StockUnknownException, { .stockName = stockName })
+        }
     } ] { nullProcess }
 
+// operazione invocata dal Player; restituisce l'informazione availability correlata allo stock richiesto
     [ infoStockAvailability( stockName )( responseAvailability ) {
         if ( is_defined( global.registeredStocks.( stockName ) )) {
             infoStockAvailability@MarketToStockCommunication( stockName )( responseAvailability )
         } else {
             // Caso in cui lo Stock richiesto dal Player non esista
-            throw( StockUnknownException , { .stockName = stockName })
+            throw( StockUnknownException, { .stockName = stockName })
         }
     } ] { nullProcess }
 
@@ -332,7 +366,7 @@ newStock.price
                 roundRequest.decimals = 5;
                 round@Math( roundRequest )( me.price );
 
-                if (DEBUG) println@Console( "destroyStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
+                if ( DEBUG ) println@Console( "destroyStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
                                             "; variation " + stockVariation.variation + "; incremento del prezzo di " + priceDecrement +
                                             "(" + me.price + " * " + stockVariation.variation + "), " +
                                             "da " + oldPrice + " a " + me.price + ")")()
@@ -376,7 +410,7 @@ newStock.price
 // non procedere con il deperimento della quantità di stock; oppure continuare ad usare una OneWay ma prevedere
 // il lancio di un fault
 
-                if (DEBUG) println@Console( "addStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
+                if ( DEBUG ) println@Console( "addStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
                                             "; variation " + stockVariation.variation + "; decremento del prezzo di " + priceIncrement +
                                             "(" + me.price + " * " + stockVariation.variation + "), " +
                                             "da " + oldPrice + " a " + me.price + ")")()

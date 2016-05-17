@@ -1,7 +1,7 @@
 include "../config/constants.iol"
 include "file.iol"
+include "../interfaces/commonInterface.iol"
 include "../interfaces/stockInterface.iol"
-include "../interfaces/marketInterface.iol"
 
 include "console.iol"
 include "string_utils.iol"
@@ -60,6 +60,7 @@ define connAttemptTracking {
     sleep@Time( 5000 )()
 }
 
+
 execution { concurrent }
 
 main {
@@ -93,7 +94,8 @@ main {
             registrationStruct.name = me.static.name;
             registrationStruct.price = me.static.info.price;
 
-            registerStock@StockToMarketCommunication( registrationStruct )();
+// TODO: al momento riceve un bool true; è davvero necessario?
+            registerStock@StockToMarketCommunication( registrationStruct )( response );
 
 // posso adesso avviare l'operazione di wasting (deperimento), ovvero un thread parallelo e indipendente (definito
 // come operazione all'interno del servizio Stock) dedicato allo svolgimento di tal operazione
@@ -147,7 +149,7 @@ main {
                 response = true
             } else {
 
-// TODO: lanciare un fault? Ad esempio un AvailabilityTerminatedException
+// TODO: lanciare un fault? Ad esempio un NoAvailabilityException
 // potrebbe essere un'idea propagarla, passando per StocksMng e Market, sino ad un avviso al Player
                 if (DEBUG) println@Console("Sono " + me.static.name + " (processId: " + processId+ "); la disponibilità è terminata")();
                 response = false

@@ -7,7 +7,7 @@ type StockSubStruct: void {
     .dynamic: StockDynamicStruct
 }
 
-// informazioni caricate dal file di configurazione xml (filename è aggiunto a runtime)
+// informazioni caricate dal file di configurazione xml (l'attributo "filename" è aggiunto a runtime)
 type StockStaticStruct: void {
     .filename: string
     .name: string
@@ -47,21 +47,17 @@ type StocksDiscovererExceptionType: void {
     .message: string
 }
 
-type StockNameExceptionType: void {
-    .stockName: string
-}
-
-// connette StocksLauncher e StocksMng
+// connetti StocksLauncher e StocksMng
 interface StocksLauncherInterface {
     RequestResponse: discover( int )( void ) throws StocksDiscovererException( StocksDiscovererExceptionType )
-                                                    IOException( IOExceptionType )
-                                                    FileNotFound ( FileNotFoundType )
+                                                    IOException
+                                                    FileNotFound
 }
 
 // interfaccia di comunicazione con ciascuna stock instance dinamicamente allocata (ed embeddata) all'interno di StocksMng.ol
 interface StockInstanceInterface {
 // TODO: si vedano gli specifici todo all'interno di Stock.ol in relazione alle operazioni indicate
-// (in sintesi dobbiam capire cosa / se / come struttura la response)
+// (in sintesi dobbiam capire cosa / se / come strutturare la response)
 // messo boolean come response
     RequestResponse: start( StockSubStruct )( void ) throws StockDuplicatedException( StockNameExceptionType )
     RequestResponse: buyStock( void )( bool ) throws StockUnknownException( StockNameExceptionType )
@@ -71,7 +67,7 @@ interface StockInstanceInterface {
 
 // from stocks to market
 interface StockToMarketCommunicationInterface {
-    RequestResponse: registerStock( StockRegistrationStruct )( string ) throws StockDuplicatedException( StockNameExceptionType )
+    RequestResponse: registerStock( StockRegistrationStruct )( bool ) throws StockDuplicatedException( StockNameExceptionType )
 // TODO: sicuri non sia necessaria una RequestResponse ?
     OneWay: addStock( StockVariationStruct )
     OneWay: destroyStock( StockVariationStruct )

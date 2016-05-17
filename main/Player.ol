@@ -1,6 +1,6 @@
 include "../config/constants.iol"
+include "../interfaces/commonInterface.iol"
 include "../interfaces/playerInterface.iol"
-include "../interfaces/marketInterface.iol"
 
 include "console.iol"
 include "time.iol"
@@ -26,9 +26,19 @@ execution { single }
 
 // La sezione init deve essere prima di ogni define
 init {
-  install ( IOException => println@Console( "caught IOException :  Server is down" )() );
-  install ( PlayerDuplicateException => println@Console( "caught PlayerDuplicateException : Player already exists" )() );
-  install ( StockUnknownException => println@Console( "caught StockUnknownException : Stock not found" )() )
+
+// così come suggerito da Stefania, dichiaramo tutte le eccezioni nell'init
+// (una dichiarazione cumulativa per tutti i throw invocati in ciascuna operazione);
+// qualora sia invece necessario intraprendere comportamenti specifici è bene definire l'install all'interno dello scope
+    scope( commonFaultScope ) {
+        install(    
+                IOException => println@Console( MARKET_DOWN_EXCEPTION )(),
+                PlayerDuplicatedException => println@Console( PLAYER_DUPLICATED_EXCEPTION + 
+                                              " (" + commonFaultScope.PlayerDuplicatedException.playerName + ")")(),
+                StockUnknownException => println@Console( PLAYER_DUPLICATED_EXCEPTION + 
+                                              " (" + commonFaultScope.StockUnknownException.stockName + ")")()
+              )
+    }
 }
 
 //Il Player aggiorna il suo status (liquidità e stock posseduti) in funzione

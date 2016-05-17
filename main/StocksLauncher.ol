@@ -1,5 +1,6 @@
 include "../config/constants.iol"
 include "file.iol"
+include "../interfaces/commonInterface.iol"
 include "../interfaces/stockInterface.iol"
 
 include "console.iol"
@@ -24,16 +25,14 @@ embedded {
 execution { single }
 
 main {
-
-// todo: capire come gestire i fault
     
     install(
 //                default => nullProcess, // catch all exceptions
                 
-                // up to date
+// la lista dei files di configurazione è aggiornata (up to date)
                 StocksDiscovererFault => println@Console( main.StocksDiscovererFault.msg )(),
 
-// todo: intercettare fault
+// TODO: intercettare i fault lanciati da discover@StocksMng
                 IOException => throw( IOException ),
                 FileNotFound => throw( FileNotFound )
             );

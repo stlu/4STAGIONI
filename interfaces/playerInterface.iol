@@ -1,4 +1,4 @@
-type infoStockStruct: void {
+type InfoStockStruct: void {
     .name[0,*]: string
 }
 
@@ -35,13 +35,19 @@ type TransactionRequest: void {
     .stock: string
 }
 
+// eccezione lanciata da registerStock@Market qualora un player con lo stesso nome tenti nuovamente di registrarsi
+// oppure, lanciata dalle operazioni buyStock e sellStock qualora il player non sia correttamente registrato
+type PlayerNameExceptionType: void {
+    .playerName: string
+}
 
 interface PlayerToMarketCommunicationInterface {
-    RequestResponse:
-        registerPlayer( string )( PlayerStatus ) throws PlayerDuplicateException,
-        buyStock( TransactionRequest )( Receipt ) throws StockUnknownException,
-        sellStock( TransactionRequest )( Receipt ) throws StockUnknownException,
-        infoStockList( string )( infoStockStruct ) throws TypeMismatch,
-        infoStockPrice( string )( double ) throws StockUnknownExceptiont,
-        infoStockAvailability( string )( double ) throws StockUnknownExceptiont,
+    RequestResponse: registerPlayer( string )( PlayerStatus ) throws PlayerDuplicatedException( PlayerNameExceptionType )
+    RequestResponse: buyStock( TransactionRequest )( Receipt ) throws StockUnknownException( StockNameExceptionType )
+                                                                        PlayerUnknownException( PlayerNameExceptionType )
+    RequestResponse: sellStock( TransactionRequest )( Receipt ) throws StockUnknownException( StockNameExceptionType )
+                                                                        PlayerUnknownException( PlayerNameExceptionType )
+    RequestResponse: infoStockList( string )( InfoStockStruct ) throws StockUnknownException( StockNameExceptionType )
+    RequestResponse: infoStockPrice( string )( double ) throws StockUnknownException( StockNameExceptionType )
+    RequestResponse: infoStockAvailability( string )( double ) throws StockUnknownException( StockNameExceptionType )
 }
