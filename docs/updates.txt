@@ -1,3 +1,10 @@
+2016_05_18 Pardox
+- Così come suggerito da Stefania, inserito install delle eccezioni all'interno dello scope init
+- Inserita PlayerUnknowException (da implementare correttamente all'interno di buyStock e sellStock del market)
+    lanciata qualora il player non sia correttamente registrato al market
+- Modificato marketInterface in commonInterface (interfaccia *comune* a tutti i servizi in gioco)    
+- Revisione generale e pulizie di primavera
+
 2016_05_13 Stefania
 - Modificato response della buyStock e sellStock per fare restituire un bool e non string per verificare dal 
  chiamante se l'operazione è andata a buon fine (stockinterfdace.iol e Market.ol)
