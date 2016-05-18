@@ -67,7 +67,7 @@ newStock.price
 // dynamic lookup rispetto alla stringa newStock.name
         if ( ! is_defined( global.registeredStocks.( newStock.name )[ 0 ] )) {
 
-            if ( DEBUG ) { 
+            if ( DEBUG ) {
                 valueToPrettyString@StringUtils( newStock )( result );
                 println@Console( "\nMarket@registerStock, newStock:" + result )()
             };
@@ -116,7 +116,7 @@ newStock.price
         // verificarsi; tuttavia intercetto e rilancio un'eventuale eccezione
         } else {
 
-// TODO: da intercettare all'interno del player            
+// TODO: da intercettare all'interno del player
             throw( PlayerDuplicatedException, { .playerName = incomingPlayer })
         }
 
@@ -198,7 +198,7 @@ newStock.price
                             if (DELTA<1000){
                               priceDecrement += priceDecrement*0.0001
                             };
-                            if (DELTA>1000||DELTA<2000){
+                            if (DELTA>=1000&&DELTA<2000){
                                 priceDecrement += priceDecrement*0.001
                             };
                             if (DELTA>=2000) {
