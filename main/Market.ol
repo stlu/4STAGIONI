@@ -55,11 +55,11 @@ direttamente dalle specifiche del progetto
 e il proprio valore totale iniziale."
 
 ricorda la composizione della struttura registeredStocks (su cui è applicabile il dynamic lookup)
-registeredStocks.( stockName )[ 0 ].price
+registeredStocks.( stockName )[ 0 ].totalprice
 
 ricorda la composizione della struttura dati con la quale lo stock effettua l'operazione di registrazione
 newStock.name
-newStock.price
+newStock.totalprice
 */
 
 // operazione esposta agli stocks sulla porta 8001, definita nell'interfaccia StockToMarketCommunicationInterface
@@ -72,7 +72,7 @@ newStock.price
                 println@Console( "\nMarket@registerStock, newStock:" + result )()
             };
 
-            global.registeredStocks.( newStock.name )[ 0 ].price = newStock.price;
+            global.registeredStocks.( newStock.name )[ 0 ].totalprice = newStock.totalprice;
             global.registeredStocks.( newStock.name )[ 0 ].name = newStock.name;
 
 // TODO: timer correlato all'algoritmo di pricing; funziona correttamente?
@@ -143,23 +143,27 @@ newStock.price
             if (DEBUG) {
                 println@Console( ">>>BUYSTOCK " + transactionRequest.stock +">>> PLAYER: "+ transactionRequest.player +
                     ">>> PLAYER cash: " + global.accounts.(transactionRequest.player).liquidity +
-                    ">>> PREZZO Stock: " + global.registeredStocks.(transactionRequest.stock).price )()
+                    ">>> TOTALEPREZZO Stock: " + global.registeredStocks.(transactionRequest.stock).totalprice )()
             };
 
-            // Inizializza la struttura della receipt
-            with( receipt ) {
-                .stock = transactionRequest.stock;
-                .kind = 1;
-                .esito = false;
-                .price = global.registeredStocks.(transactionRequest.stock).price
-            };
-            if ( global.accounts.(transactionRequest.player).liquidity
-                >=
-                global.registeredStocks.(transactionRequest.stock).price ) {
+            synchronized ( atomicamente ) {
 
-                /*QUESTO PUNTO è CRITICO, STO INSERENDO UN SYNC AD UN
-                  LIVELLO PIUTTOSTO ALTO, DOBBIAMO PARLARNE*/
-                synchronized ( atomicamente ) {
+                infoStockAvailability@MarketToStockCommunication( transactionRequest.stock )( availability );
+                if (DEBUG) println@Console( ">>>BUYSTOCK availability " + availability )();
+
+                currentprice = global.registeredStocks.(transactionRequest.stock).totalprice / availability;
+                if (DEBUG) println@Console( ">>>BUYSTOCK currentprice " + currentprice )();
+
+                // Inizializza la struttura della receipt
+                with( receipt ) {
+                    .stock = transactionRequest.stock;
+                    .kind = 1;
+                    .esito = false;
+                    .price = currentprice
+                };
+
+                if ( global.accounts.(transactionRequest.player).liquidity >= currentprice ) {
+
                     /* 2) */
                     infoStockAvailability@MarketToStockCommunication( transactionRequest.stock )( availability );
                     if (DEBUG) println@Console( ">>>BUYSTOCK availability " + availability )();
@@ -187,14 +191,11 @@ newStock.price
 
                             //Decremento denaro nell'account del player presso il
                             //Market
-                            global.accounts.(transactionRequest.player).liquidity
-                            -=
-                            global.registeredStocks.(transactionRequest.stock).price;
-                            receipt.price = 0 - global.registeredStocks.
-                                                (transactionRequest.stock).price;
+                            global.accounts.(transactionRequest.player).liquidity -= receipt.price;
+                            receipt.price = 0 - currentprice;
 
                             //  incremento prezzo di 1/disponibilità,ora devi solo aggiungere il fattore tempo ;)
-                            priceDecrement = global.registeredStocks.(transactionRequest.stock).price * (double( 1.0 ) / double( availability ));
+                            priceDecrement = global.registeredStocks.(transactionRequest.stock).totalprice * (double( 1.0 ) / double( availability ));
                             if (DELTA<1000){
                               priceDecrement += priceDecrement*0.0001
                             };
@@ -207,9 +208,9 @@ newStock.price
                             // effettuo l'arrotondamento a 5 decimali
                             roundRequest = priceDecrement;
                             roundRequest.decimals = 5;
-                            round@Math( roundRequest )( variazionePrezzo);
+                            round@Math( roundRequest )( variazionePrezzo );
 
-                            global.registeredStocks.(transactionRequest.stock).price += variazionePrezzo;
+                            global.registeredStocks.(transactionRequest.stock).totalprice += variazionePrezzo;
                             if (DEBUG) println@Console(">>>BUYSTOCK incremento prezzo di: "  + variazionePrezzo )();
                             with( receipt ) {
                                 .stock = transactionRequest.stock;
@@ -218,8 +219,8 @@ newStock.price
                             }
                         } // if (response == true)
                     } // if ( availability > 0 )
-                } //synchronized
-            }
+                }
+            }  //synchronized
         } else {
             // Caso in cui lo Stock richiesto dal Player non esista
             throw( StockUnknownException , { .stockName = transactionRequest.stock })
@@ -238,22 +239,33 @@ newStock.price
         if ( is_defined( global.registeredStocks.(transactionRequest.stock))) {
             if (DEBUG) println@Console( ">>>SELLSTOCK Stock " + transactionRequest.stock)();
 
-            // Inizializza la struttura della receipt
-            with( receipt ) {
-                .stock = transactionRequest.stock;
-                .kind = 1;
-                .esito = false;
-                .price = global.registeredStocks.(transactionRequest.stock).price
-            };
-            /*QUESTO PUNTO è CRITICO, STO INSERENDO UN SYNC AD UN
-              LIVELLO PIUTTOSTO ALTO, DOBBIAMO PARLARNE*/
-            infoStockAvailability@MarketToStockCommunication
-            ( transactionRequest.stock )( availability );
+            synchronized ( atomicamente ) {
+                /*QUESTO PUNTO è CRITICO, STO INSERENDO UN SYNC AD UN
+                  LIVELLO PIUTTOSTO ALTO, DOBBIAMO PARLARNE*/
+                infoStockAvailability@MarketToStockCommunication( transactionRequest.stock )( availability );
+                if (DEBUG) println@Console( ">>>SELLSTOCK availability " + availability )();
 
-            // Se Player possiede lo stock lo mette in vendita
-            if (global.accounts.(transactionRequest.player).ownedStock.
-                                            (transactionRequest.stock).quantity > 0) {
-                synchronized ( atomicamente ) {
+                currentprice = global.registeredStocks.(transactionRequest.stock).totalprice / availability;
+
+                // Inizializza la struttura della receipt
+                with( receipt ) {
+                    .stock = transactionRequest.stock;
+                    .kind = 1;
+                    .esito = false;
+                    .price = currentprice
+                };
+
+                //intanto mi prendo il tempo ora per sicurezza, per poi calcolare il prezz0
+                getCurrentTimeMillis@Time(  )( T2 );
+                global.registeredStocks.( transactionRequest.stock )[ 0 ].time2=T2;
+                DELTA=long(global.registeredStocks.( transactionRequest.stock )[ 0 ].time2)-long(global.registeredStocks.( transactionRequest.stock )[ 0 ].time1);
+                //print@Console(global.registeredStocks.( transactionRequest.stock )[ 0 ].name + " , differenza " + " è: " + DELTA + "    ")();
+                global.registeredStocks.( transactionRequest.stock )[ 0 ].time1=  global.registeredStocks.( transactionRequest.stock )[ 0 ].time2;
+
+                // Se Player possiede lo stock lo mette in vendita
+                if (global.accounts.(transactionRequest.player).ownedStock.
+                                                (transactionRequest.stock).quantity > 0) {
+                    if (DEBUG) println@Console( ">>>SELLSTOCK quantity > 0 ")();
                     //Incremento disponibilità Stock
                     sellStock@MarketToStockCommunication( transactionRequest.stock )( response );
 
@@ -264,19 +276,25 @@ newStock.price
                         global.accounts.(transactionRequest.player).ownedStock.
                                                 (transactionRequest.stock).quantity--;
                         //Incremento denaro nell'account del player presso il Market
-                        global.accounts.(transactionRequest.player).liquidity
-                        +=
-                        global.registeredStocks.(transactionRequest.stock).price;
-                        receipt.price = global.registeredStocks.(transactionRequest.stock).price;
-
+                        global.accounts.(transactionRequest.player).liquidity += currentprice;
 
                         //  decremento prezzo di 1/disponibilità,ora devi solo aggiungere il fattore tempo ;)
-                        priceIncrement = global.registeredStocks.(transactionRequest.stock).price * (double( 1.0 ) / double(availability ));
+                        priceIncrement = global.registeredStocks.(transactionRequest.stock).totalprice * (double( 1.0 ) / double(availability ));
+                        if (DELTA < 1000){
+                          priceIncrement -= priceDecrement*0.0001
+                        };
+                        if (DELTA>=1000&&DELTA<2000){
+                            priceIncrement -= priceDecrement*0.001
+                        };
+                        if (DELTA>=2000) {
+                          priceIncrement -= priceDecrement*0.01
+                        };
                         // effettuo l'arrotondamento a 2 decimali
                         roundRequest = priceIncrement;
                         roundRequest.decimals = 5;
-                        round@Math( roundRequest )( variazionePrezzo);
-                        global.registeredStocks.(transactionRequest.stock).price -= priceIncrement;
+                        round@Math( roundRequest )( variazionePrezzo );
+
+                        global.registeredStocks.(transactionRequest.stock).totalprice -= variazionePrezzo;
                         if (DEBUG) println@Console( ">>>SELLSTOCK decremento prezzo di: "  + variazionePrezzo )();
                         with( receipt ) {
                             .stock = transactionRequest.stock;
@@ -284,8 +302,8 @@ newStock.price
                             .esito = true
                         }
                     } // response
-                } // synchronized
-            } // quantity > 0
+                } // quantity > 0
+            } // syncronized
         } else {
             // Caso in cui lo Stock richiesto dal Player non esista
             throw( StockUnknownException , { .stockName = transactionRequest.stock })
@@ -305,8 +323,10 @@ newStock.price
     [ infoStockPrice( stockName )( responsePrice ) {
         if ( DEBUG ) println@Console( ">>>infoStockPrice nome "  + stockName )();
 
+        infoStockAvailability@MarketToStockCommunication( stockName )( availability );
+
         if ( is_defined( global.registeredStocks.( stockName ) )) {
-            responsePrice = global.registeredStocks.( stockName ).price
+            responsePrice = global.registeredStocks.( stockName ).totalprice / availability
         } else {
             // Caso in cui lo Stock richiesto dal Player non esista
             throw( StockUnknownException, { .stockName = stockName })
@@ -354,22 +374,22 @@ newStock.price
 
             synchronized( syncToken ) {
 
-                oldPrice = me.price;
+                oldPrice = me.totalprice;
 
 // aggiorno il prezzo attuale (ricorda che entrambi sono tipi di dato double)
 // l'incremento del prezzo potrebbe generare una cifra con un numero di decimali > 2;
 // sommo l'incremento al prezzo attuale e successivamente effettuo una arrotondamento a 5 cifre decimali
-                priceIncrement = me.price * stockVariation.variation;
-                me.price += priceIncrement;
+                priceIncrement = me.totalprice * stockVariation.variation;
+                me.totalprice += priceIncrement;
 // effettuo l'arrotondamento a 2 decimali
-                roundRequest = me.price;
+                roundRequest = me.totalprice;
                 roundRequest.decimals = 5;
-                round@Math( roundRequest )( me.price );
+                round@Math( roundRequest )( me.totalprice );
 
-                if ( DEBUG ) println@Console( "destroyStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
+                if ( DEBUG ) println@Console( "destroyStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.totalprice +
                                             "; variation " + stockVariation.variation + "; incremento del prezzo di " + priceDecrement +
-                                            "(" + me.price + " * " + stockVariation.variation + "), " +
-                                            "da " + oldPrice + " a " + me.price + ")")()
+                                            "(" + me.totalprice + " * " + stockVariation.variation + "), " +
+                                            "da " + oldPrice + " a " + me.totalprice + ")")()
             }
         }
     }
@@ -392,17 +412,17 @@ newStock.price
 
             synchronized( syncToken ) {
 
-                oldPrice = me.price;
+                oldPrice = me.totalprice;
 
 // aggiorno il prezzo attuale (ricorda che entrambi sono tipi di dato double)
 // il decremento del prezzo potrebbe generare una cifra con un numero di decimali > 2;
 // sottraggo il decremento al prezzo attuale e successivamente effettuo una arrotondamento a 5 cifre decimali
-                priceDecrement = me.price * stockVariation.variation;
-                me.price -= priceDecrement;
+                priceDecrement = me.totalprice * stockVariation.variation;
+                me.totalprice -= priceDecrement;
 // effettuo l'arrotondamento a 2 decimali
-                roundRequest = me.price;
+                roundRequest = me.totalprice;
                 roundRequest.decimals = 5;
-                round@Math( roundRequest )( me.price );
+                round@Math( roundRequest )( me.totalprice );
 
 // TODO
 // che succede se il prezzo diventa < 0? (caso poco probabile ma possibile!)
@@ -410,10 +430,10 @@ newStock.price
 // non procedere con il deperimento della quantità di stock; oppure continuare ad usare una OneWay ma prevedere
 // il lancio di un fault
 
-                if ( DEBUG ) println@Console( "addStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.price +
+                if ( DEBUG ) println@Console( "addStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.totalprice +
                                             "; variation " + stockVariation.variation + "; decremento del prezzo di " + priceIncrement +
-                                            "(" + me.price + " * " + stockVariation.variation + "), " +
-                                            "da " + oldPrice + " a " + me.price + ")")()
+                                            "(" + me.totalprice + " * " + stockVariation.variation + "), " +
+                                            "da " + oldPrice + " a " + me.totalprice + ")")()
             }
         }
     }

@@ -13,7 +13,7 @@ type StockStaticStruct: void {
     .name: string
     .info: void {
         .availability: int
-        .price: double
+        .totalprice: double
         .wasting: void {
             .low: int
             .high: int
@@ -34,7 +34,7 @@ type StockDynamicStruct: void {
 
 type StockRegistrationStruct: void {
     .name: string
-    .price: double
+    .totalprice: double
 }
 
 // struttura dati utilizzata dallo stock per comunicare al market la variazione di produzione / deperimento

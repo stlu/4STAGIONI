@@ -129,19 +129,19 @@ qualora anche il nome non sia già presente, allora posso lanciare lo stock a ru
 // TODO: creare scope specifici ed effettuare install più dettagliati;
 // TODO: affiancare procedure define per snellire la lettura del codice
         install(
-// TODO: verificare tutti i seguenti fault                    
+// TODO: verificare tutti i seguenti fault
 // stock list up to date
                     StocksDiscovererException => println@Console( discover.StocksDiscovererException.message )(),
-                  
+
                     IOException => throw( IOException ),
                     FileNotFound => throw( FileNotFound ),
 
-// TODO: gestire all'interno dello scope la seguente exception; è relativa ad un thread non correttamente lanciato;                    
+// TODO: gestire all'interno dello scope la seguente exception; è relativa ad un thread non correttamente lanciato;
                     RuntimeExceptionType => throw( RuntimeExceptionType )
 
 // TODO, uno stock con lo stesso nome è già registrato sul market; caso praticamente impossibile dato che è
-// effettuato un attento controllo sui nomi; implementare un comportamento                    
-//                    StockDuplicatedException => 
+// effettuato un attento controllo sui nomi; implementare un comportamento
+//                    StockDuplicatedException =>
                 );
 
         while ( true ) {

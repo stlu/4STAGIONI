@@ -92,7 +92,7 @@ main {
 // avvio la procedura di registrazione dello stock sul market
 // compongo una piccola struttura dati con le uniche informazioni richieste dal market
             registrationStruct.name = me.static.name;
-            registrationStruct.price = me.static.info.price;
+            registrationStruct.totalprice = me.static.info.totalprice;
 
 // TODO: al momento riceve un bool true; è davvero necessario?
             registerStock@StockToMarketCommunication( registrationStruct )( response );
