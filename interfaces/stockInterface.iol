@@ -43,11 +43,6 @@ type StockVariationStruct: void {
     .variation: double
 }
 
-// connette StocksLauncher e StocksMng (innesco)
-interface StocksLauncherInterface {
-    OneWay: discover( int )
-}
-
 // interfaccia di comunicazione con ciascuna stock instance dinamicamente allocata (ed embeddata) all'interno di StocksMng.ol
 interface StockInstanceInterface {
 // TODO: si vedano gli specifici todo all'interno di Stock.ol in relazione alle operazioni indicate
