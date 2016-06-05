@@ -13,7 +13,7 @@ type StockStaticStruct: void {
     .name: string
     .info: void {
         .availability: int
-        .totalprice: double
+        .totalPrice: double
         .wasting: void {
             .low: int
             .high: int
@@ -34,7 +34,7 @@ type StockDynamicStruct: void {
 
 type StockRegistrationStruct: void {
     .name: string
-    .totalprice: double
+    .totalPrice: double
 }
 
 // struttura dati utilizzata dallo stock per comunicare al market la variazione di produzione / deperimento
@@ -43,15 +43,9 @@ type StockVariationStruct: void {
     .variation: double
 }
 
-type StocksDiscovererExceptionType: void {
-    .message: string
-}
-
-// connetti StocksLauncher e StocksMng
+// connette StocksLauncher e StocksMng (innesco)
 interface StocksLauncherInterface {
-    RequestResponse: discover( int )( void ) throws StocksDiscovererException( StocksDiscovererExceptionType )
-                                                    IOException
-                                                    FileNotFound
+    OneWay: discover( int )
 }
 
 // interfaccia di comunicazione con ciascuna stock instance dinamicamente allocata (ed embeddata) all'interno di StocksMng.ol
@@ -59,15 +53,16 @@ interface StockInstanceInterface {
 // TODO: si vedano gli specifici todo all'interno di Stock.ol in relazione alle operazioni indicate
 // (in sintesi dobbiam capire cosa / se / come strutturare la response)
 // messo boolean come response
-    RequestResponse: start( StockSubStruct )( void ) throws StockDuplicatedException( StockNameExceptionType )
-    RequestResponse: buyStock( void )( bool ) throws StockUnknownException( StockNameExceptionType )
-    RequestResponse: sellStock( void )( bool ) throws StockUnknownException( StockNameExceptionType )
-    RequestResponse: infoStockAvailability( void )( int ) throws StockUnknownException( StockNameExceptionType )
+    RequestResponse: start( StockSubStruct )( void )
+    RequestResponse: buyStock( void )( bool )
+    RequestResponse: sellStock( void )( bool )
+    RequestResponse: infoStockAvailability( void )( int )
 }
 
 // from stocks to market
 interface StockToMarketCommunicationInterface {
     RequestResponse: registerStock( StockRegistrationStruct )( bool ) throws StockDuplicatedException( StockNameExceptionType )
+
 // TODO: sicuri non sia necessaria una RequestResponse ?
     OneWay: addStock( StockVariationStruct )
     OneWay: destroyStock( StockVariationStruct )
@@ -80,5 +75,5 @@ interface MarketToStockCommunicationInterface {
 // messo boolean come response
     RequestResponse: buyStock( string )( bool ) throws StockUnknownException( StockNameExceptionType )
     RequestResponse: sellStock( string )( bool ) throws StockUnknownException( StockNameExceptionType )
-    RequestResponse: infoStockAvailability( string )( int )
+    RequestResponse: infoStockAvailability( string )( int ) throws StockUnknownException( StockNameExceptionType )
 }

@@ -1,3 +1,11 @@
+2016_06_05 Pardox
+- Eliminato StocksLauncher.ol; adesso è main/StocksMng.ol l'entry point per la gestione degli stock
+- All'interno di StocksMng.old e Stock.ol, Controllati e gestiti la maggior parte dei fault
+- Inserite alcune recovery function "intelligenti" qualora:
+    _ sia stato avviato StocksMng ma il Market sia down
+    _ l'esecuzione di uno stock abbia innescato eccezioni
+		(ad esempio qualora il file di configurazione presenti errori)
+
 2016_05_18 Pardox
 - Così come suggerito da Stefania, inserito install delle eccezioni all'interno dello scope init
 - Inserita PlayerUnknowException (da implementare correttamente all'interno di buyStock e sellStock del market)
@@ -9,7 +17,7 @@
 - Modificato response della buyStock e sellStock per fare restituire un bool e non string per verificare dal 
  chiamante se l'operazione è andata a buon fine (stockinterfdace.iol e Market.ol)
 - Market.ol il player può vendere solo gli stock che possiede, aggiunto controllo in tal senso
-            il player può acquistare solo stock con disponibilità > 0 
+    il player può acquistare solo stock con disponibilità > 0 
 
 2016_05_11 Pardox
 - In generale ho agito lato Stock -> StocksMng -> Market
@@ -20,18 +28,18 @@
     aggiornata stockInterface rispetto ai vari throws.
 
 2016_05_09 Stefania
-- constants.iol 
+- constants.iol
 	inserita costante DEBUG che se true attiva stampe di controllo (di default è false)
-        per esempio: jolie -C DEBUG=true Market.ol
+    per esempio: jolie -C DEBUG=true Market.ol
 - Market.ol 
 	corrette operazioni decremento/incremento stock buyStock e sellStock 
-        inserita gestione stampe con debug
+    inserita gestione stampe con debug
 - grano.xml corretti valori di wasting          
 - stockInterface.iol 
 	aggiunta eccezione per market close
 - Stock.ol e StocksMng.ol
 	gestione stampe con debug
-        errore infoStockAvaliability
+    errore infoStockAvaliability
 
 
 2016_05_09 Fausto
