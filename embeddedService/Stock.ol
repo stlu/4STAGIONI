@@ -60,7 +60,7 @@ define connAttemptTracking {
     println@Console( global.stockConfig.static.name + ": connection attempt to Market failed (" + ++global.connAttempt + "); try again in 5 seconds" )();
 
 // dopo 5 tentativi lancio un halt che si propaga a StockMng e StocksLauncher
-    if ( global.connAttempt == 5 ) {
+    if ( global.connAttempt == MAX_CONNECTION_ATTEMPTS ) {
         println@Console( CONNECTION_ATTEMPTS_MSG )();
         halt@Runtime()()
     };
@@ -91,9 +91,8 @@ main {
                 MarketClosedException => println@Console( MARKET_CLOSED_EXCEPTION )();
                                             sleep@Time( 5000 )(); registration@Self(),
 
-// rilancia a StocksMng il fault ricevuto dal market; no, per il momento gestisco tutto con questo install
-// 04-jun-16: credo sia una buona soluzione definitiva
-//            StockDuplicatedException => throw( StockDuplicatedException )
+// qualora lo stock sia già registrato, viene mostrato un errore a video;
+// il flusso esecutivo porta al termine del thread
                 StockDuplicatedException => println@Console( STOCK_DUPLICATED_EXCEPTION +
                                             " (" + registrationScope.StockDuplicatedException.stockName + ")")()
             );
@@ -161,14 +160,19 @@ main {
                 me.dynamic.availability--;
                 if ( DEBUG )
                     println@Console("Sono " + me.static.name + " (processId: " + processId+ "); decremento la disponibilità di stock")();
+
+// TODO: a mio avviso la seguente response è ridondante                
                 response = true
             } else {
 
-// TODO: lanciare un fault? Ad esempio un NoAvailabilityException
-// potrebbe essere un'idea propagarla, passando per StocksMng e Market, sino ad un avviso al Player
                 if ( DEBUG )
                     println@Console("Sono " + me.static.name + " (processId: " + processId+ "); la disponibilità è terminata")();
-                response = false
+
+// TODO: a mio avviso la seguente response è ridondante;
+// il fault è correttamente intercettato da buyStock@Market
+                response = false;
+
+                throw( StockAvailabilityException, { .stockName = stockName } )
             }
         }
 
@@ -188,16 +192,22 @@ main {
         synchronized( syncToken ) {
             me.dynamic.availability++;
             if ( DEBUG )
-                println@Console("Sono " + me.static.name + " (processId: " + processId+ "); incremento la disponibilità di stock")();
-            response = true
-        }
+                println@Console("Sono " + me.static.name + " (processId: " + processId+ "); incremento la disponibilità di stock")()
+        };
+
+// TODO: a mio avviso la seguente response è ridondante
+        response = true
     } ] { nullProcess }
 
 
 
     [ infoStockAvailability()( response ) {
         me -> global.stockConfig;
-// dev'essere synchronized poichè potrebbero verificarsi letture e scritture simultanee
+// TODO: dev'essere synchronized poichè potrebbero verificarsi letture e scritture simultanee. Sicuri?
+// Beh, direi di si. Il problema è riconducibile al paradigma dei lettori | scrittori.
+// Posso favorire letture simultanee (prive di alcuna interferente scrittura); ma debbo prevenire
+// letture e scritture simultanee (il lettore potrebbe leggere dati incongruenti, parzialmente scritti)
+// ... da riguardare ...   
         synchronized( syncToken ) {
             response = me.dynamic.availability
         }
@@ -214,6 +224,7 @@ main {
 // 04-jun-16            
 // una "semplice" chiusura del mercato comporta invece una "semplice" attesa
 // in altri termini: qualora il mercato sia chiuso, lo stock NON può deperire
+// (implementare il contrario mi sembra complicato...)
 // scelta progettuale da documentare opportunamente
             MarketClosedException => println@Console( MARKET_CLOSED_EXCEPTION )();
                                         sleep@Time( 5000 )();
@@ -236,11 +247,35 @@ main {
 
             synchronized( syncToken ) {
 
-// la quantità residua è sufficiente per effettuare un deperimento?
-                if ( me.dynamic.availability >= me.wasting.high ) {
+// direttamente dalle specifiche:
+// "quando uno Stock arriva a 0 in seguito ad un Deperimento, il prezzo del bene rimane invariato,
+// e.g., il Grano ha 1 unità con costo 40, viene Deperito di 3, la disponibilità scende a 0 ma il prezzo rimane 40"
+// e ancora: "gli Stocks non possono deperire al di sotto dello 0;"
+
+// la disponibilità residua è già 0? procedo "d'ufficio" confermando la disponibilità
+// oppure
+// la dispnibilità è minore o uguale alla soglia minima di deperimento?
+// la quantità da deperire è una scelta obbligata ed equivale esattamente alla quantità disponibile | residua
+// non avvio alcuna comunicazione al merket; il prezzo rimane invariato
+                if ( ( me.dynamic.availability == 0 ) || ( me.dynamic.availability <= me.wasting.low ) ) {
+                    me.dynamic.availability = 0
+
+                } else {
+
+// procedo con il calcolo del deperimento random
                     lowerBound = me.wasting.low;
                     upperBound = me.wasting.high;
-                    randGen; // la procedura imposta la variabile amount
+                    randGen; // la procedura calcola un valore random nell'intervallo indicato ed imposta la variabile amount
+
+// se il valore generato (ovvero la quantità da deperire) è > della disponibilità effettiva,    
+// procedo "d'ufficio" impostanto la disponibilità a 0
+// la quantità deperità equivarrà alla disponibilità residua
+// non avvio alcuna comunicazione al merket; il prezzo rimane invariato         
+                    if ( amount > me.dynamic.availability ) {
+                        me.dynamic.availability = 0
+
+// caso "standard"
+                    } else {
 
 /*
 Direttamente dalle specifiche:
@@ -251,29 +286,31 @@ l’offerta del Grano, il Market aumenta il prezzo totale del Grano del 15%."
 E' quindi necessario comunicare al market un valore decimale da cui verrà poi calcolato un incremento di prezzo
 */
 
-// quantità deperita / quantità totale corrente
-                    roundRequest = double( amount ) / double( me.dynamic.availability );
-// effettuo l'arrotondamento a 5 decimali
-                    roundRequest.decimals = 5;
-                    round@Math( roundRequest )( wastingRate );
 
-// decremento la quantità deperita alla quantità totale disponibile
-                    oldAvailability = me.dynamic.availability;
-                    me.dynamic.availability -= amount;
+// quantità deperita / quantità totale corrente
+                        roundRequest = double( amount ) / double( me.dynamic.availability );
+// effettuo l'arrotondamento al numero di decimali indicati in constants.iol
+                        roundRequest.decimals = DECIMAL_ROUNDING;
+                        round@Math( roundRequest )( wastingRate );
+
+                        oldAvailability = me.dynamic.availability;
 
 // compongo la struttura dati da passare al market
-                    stockWasting.name = me.static.name;
-                    stockWasting.variation = wastingRate;
+                        stockWasting.name = me.static.name;
+                        stockWasting.variation = wastingRate;
 
-// TODO: sicuri sia sufficiente una OneWay?
-                    destroyStock@StockToMarketCommunication( stockWasting );
+// nb. è una semplice OneWay
+                        destroyStock@StockToMarketCommunication( stockWasting );
+// decremento la quantità deperita alla quantità totale disponibile;
+                        me.dynamic.availability -= amount;
 
-                    if ( DEBUG ) {
-                        getProcessId@Runtime()( processId );
-                        println@Console( "Sono " + me.static.name + " (processId: " + processId + "); WASTING di " + amount +
-                        " (da " + oldAvailability + " a " + me.dynamic.availability + "); wastingRate di " +
-                        roundRequest + " arrotondato a " + wastingRate + "; interval: " +
-                        me.wasting.interval + " secondi" )()
+                        if ( DEBUG ) {
+                            getProcessId@Runtime()( processId );
+                            println@Console( "Sono " + me.static.name + " (processId: " + processId + "); WASTING di " + amount +
+                                        " (da " + oldAvailability + " a " + me.dynamic.availability + "); wastingRate di " +
+                                        roundRequest + " arrotondato a " + wastingRate + "; interval: " +
+                                        me.wasting.interval + " secondi" )()
+                        }
                     }
                 }
             };
@@ -314,9 +351,25 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
             checkMarketStatus;
 
             synchronized( syncToken ) {
+
                 lowerBound = me.production.low;
                 upperBound = me.production.high;
-                randGen; // la procedura imposta la variabile amount
+                randGen; // la procedura calcola un valore random nell'intervallo indicato ed imposta la variabile amount
+
+// da specifiche: "quando uno Stock è a 0 e c’è una Produzione, il prezzo del bene rimane invariato, 
+// e.g., il Grano ha 0 unità e prezzo registrato 40, ne vengono prodotte 3 unità dal relativo Stock, il Market
+// aggiorna le unità di Grano disponibili ma il prezzo rimane 40.
+                if ( me.dynamic.availability == 0 ) {
+                    me.dynamic.availability = amount;
+
+                    if ( DEBUG ) {
+                        getProcessId@Runtime()( processId );
+                        println@Console( "Sono " + me.static.name + " (processId: " + processId + "); PRODUCTION di " + amount +
+                                            " (da 0 a " + me.dynamic.availability + ");" +
+                                            " interval: " + me.production.interval + " secondi" )()
+                    }
+
+                } else {
 
 /*
 Direttamente dalle specifiche:
@@ -329,27 +382,29 @@ E' quindi necessario comunicare al market un valore decimale da cui verrà poi c
 */
 
 // quantità prodotta / quantità totale corrente
-                roundRequest = double( amount ) / double( me.dynamic.availability );
+                    roundRequest = double( amount ) / double( me.dynamic.availability );
+// effettuo l'arrotondamento al numero di decimali indicati in constants.iol
+                    roundRequest.decimals = DECIMAL_ROUNDING;
+                    round@Math( roundRequest )( productionRate );
 
-// effettuo l'arrotondamento a 5 decimali
-                roundRequest.decimals = 5;
-                round@Math( roundRequest )( productionRate );
 // incremento la quantità totale disponibile della quantità prodotta
-                oldAvailability = me.dynamic.availability;
-                me.dynamic.availability += amount;
+                    oldAvailability = me.dynamic.availability;
 
 // compongo la struttura dati da passare al market
-                stockProduction.name = me.static.name;
-                stockProduction.variation = productionRate;
-// TODO: sicuri sia sufficiente una OneWay?
-                addStock@StockToMarketCommunication( stockProduction );
+                    stockProduction.name = me.static.name;
+                    stockProduction.variation = productionRate;
 
-                if ( DEBUG ) {
-                    getProcessId@Runtime()( processId );
-                    println@Console( "Sono " + me.static.name + " (processId: " + processId + "); PRODUCTION di " + amount +
-                                        " (da " + oldAvailability + " a " + me.dynamic.availability + "); productionRate di " +
-                                        roundRequest + " arrotondato a " + productionRate + "; interval: " +
-                                        me.production.interval + " secondi" )()
+                    addStock@StockToMarketCommunication( stockProduction );
+
+                    me.dynamic.availability += amount;
+
+                    if ( DEBUG ) {
+                        getProcessId@Runtime()( processId );
+                        println@Console( "Sono " + me.static.name + " (processId: " + processId + "); PRODUCTION di " + amount +
+                                            " (da " + oldAvailability + " a " + me.dynamic.availability + "); productionRate di " +
+                                            roundRequest + " arrotondato a " + productionRate + "; interval: " +
+                                            me.production.interval + " secondi" )()
+                    }
                 }
             };
 

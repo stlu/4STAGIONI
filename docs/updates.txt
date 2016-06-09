@@ -1,3 +1,11 @@
+2016_09_05 Pardox
+- Effettute modifiche sostanziali a buyStock@Market e sellStock@Market introducendo l'utilizzo
+    dei semafori. Adesso è possibile eseguire transazioni in parallelo su stock differenti
+    (ma, ovviamente, non un'acquisto E una vendita in parallelo sullo stesso stock).   
+- Ho curato (e spero terminato) la propagazione e l'innesco di eccezioni.
+- Il player necessita di modifiche sostanziali: sia per la gestione delle eccezioni, sia per
+    quanto riguarda la correttezza del parallelismo.
+
 2016_06_05 Pardox
 - Eliminato StocksLauncher.ol; adesso è main/StocksMng.ol l'entry point per la gestione degli stock
 - All'interno di StocksMng.old e Stock.ol, Controllati e gestiti la maggior parte dei fault
@@ -15,7 +23,7 @@
 
 2016_05_13 Stefania
 - Modificato response della buyStock e sellStock per fare restituire un bool e non string per verificare dal 
- chiamante se l'operazione è andata a buon fine (stockinterfdace.iol e Market.ol)
+ chiamante se l'operazione è andata a buon fine (stockinterface.iol e Market.ol)
 - Market.ol il player può vendere solo gli stock che possiede, aggiunto controllo in tal senso
     il player può acquistare solo stock con disponibilità > 0 
 
@@ -41,7 +49,6 @@
 	gestione stampe con debug
     errore infoStockAvaliability
 
-
 2016_05_09 Fausto
 -StockInterface.iol, Stefano L. ha dichiarato infoStockAvailability nelle interfaccie StockInstance e
 	MarketToStockCommunication, bella Ste, mi serviva!cho modificato il tipo di ritorno da
@@ -55,7 +62,6 @@
 	creazione dei tipi Receipt e TransactionRequest, modificata
 	l'interfaccia per usarli.
 -Questo documento funziona meglio se ci si scrive in testa = )
-
 
 2016_05_08 Stefania
 - Market.ol

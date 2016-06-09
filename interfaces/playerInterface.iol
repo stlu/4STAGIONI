@@ -41,12 +41,23 @@ type PlayerNameExceptionType: void {
     .playerName: string
 }
 
+// eccezione lanciata all'interno delle operazioni buyStock e sellStock qualora la liquidità del player
+// sia insufficiente per completare la transazione
+type TransactionExceptionType: void {
+    .stockName: string
+    .currentLiquidity: double
+    .neededLiquidity: double
+}
+
 interface PlayerToMarketCommunicationInterface {
     RequestResponse: registerPlayer( string )( PlayerStatus ) throws PlayerDuplicatedException( PlayerNameExceptionType )
-    RequestResponse: buyStock( TransactionRequest )( Receipt ) throws StockUnknownException( StockNameExceptionType )
+    RequestResponse: buyStock( TransactionRequest )( Receipt ) throws   StockUnknownException( StockNameExceptionType )
                                                                         PlayerUnknownException( PlayerNameExceptionType )
-    RequestResponse: sellStock( TransactionRequest )( Receipt ) throws StockUnknownException( StockNameExceptionType )
+                                                                        StockAvailabilityException( StockNameExceptionType )
+                                                                        InsufficientLiquidityException( TransactionExceptionType )
+    RequestResponse: sellStock( TransactionRequest )( Receipt ) throws  StockUnknownException( StockNameExceptionType )
                                                                         PlayerUnknownException( PlayerNameExceptionType )
+                                                                        NotOwnedStockException ( StockNameExceptionType )
     RequestResponse: infoStockList( string )( InfoStockStruct ) throws StockUnknownException( StockNameExceptionType )
     RequestResponse: infoStockPrice( string )( double ) throws StockUnknownException( StockNameExceptionType )
     RequestResponse: infoStockAvailability( string )( double ) throws StockUnknownException( StockNameExceptionType )

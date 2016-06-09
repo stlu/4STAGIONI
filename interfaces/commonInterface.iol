@@ -1,6 +1,6 @@
 // tipi di dato e operazioni condivise tra Market, Player(s), Stock(s)
 
-// tipo di dato relativo al fault StockDuplicatedException
+// tipo di dato relativo ai fault StockDuplicatedException, StockUnknownException, StockAvailabilityException
 type StockNameExceptionType: void {
     .stockName: string
 }

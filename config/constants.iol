@@ -22,6 +22,16 @@ constants {
 // dopo n tentativi, qualora il market sia ancora chiuso
     CONNECTION_ATTEMPTS_MSG = "Too many connection attempts. Market is still closed. Closing program. Bye ;)",
 
+// numero massimo di tentativi di connessione al market; se oltrepassati il programma viene interrotto
+    MAX_CONNECTION_ATTEMPTS = 5,
+
+// liquidità iniziale di default del player
+    DEFAULT_PLAYER_LIQUIDITY = 100,
+// numero di decimali a cui arrotondare i vari importi
+    DECIMAL_ROUNDING = 5,
+// come da specifiche: il prezzo di uno Stock non può mai scendere sotto il valore di 10
+    MINIMUN_STOCK_PRICE = 10,
+
 // se true attiva stampe di controllo
     DEBUG = false
 }

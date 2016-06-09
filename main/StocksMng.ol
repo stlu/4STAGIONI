@@ -35,13 +35,19 @@ outputPort Self { Interfaces: LocalInterface }
 
 
 
-define trigger {
+define trigger { // innesco
     discoveringInterval = 5000;
     discover@Self( discoveringInterval )
 }
 
+// si è verificato un errore nell'operazione discover
 define discoverFaultMng {
     println@Console( STOCK_GENERIC_ERROR_MSG + " (" + global.currentFile + ")" )();
+// aggiungo il file di configurazione all'interno dell'exception list, così da prevenire il lancio
+// di nuove eccezioni; successivamente innesco (di nuovo) l'operazione discover
+    if ( ! is_defined( global.exceptionFileList.( currentFile )))
+        global.exceptionFileList.( currentFile )[ 0 ] = true;
+
     trigger
 }
 
@@ -83,6 +89,11 @@ dynamicStockList.( stockName )[ 0 ].fileName
 dynamicStockList.( stockName )[ 0 ].location
 */
     [ buyStock( stockName )( response ) {
+
+        install(
+// eccezione rilanciabile dall'operazione buyStock            
+            StockAvailabilityException => throw( StockAvailabilityException )
+        );
 
 // dynamic lookup rispetto alla stringa stockName
         if ( is_defined( global.dynamicStockList.( stockName )[ 0 ] )) {

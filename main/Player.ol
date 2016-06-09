@@ -24,23 +24,6 @@ constants {
 
 execution { single }
 
-// La sezione init deve essere prima di ogni define
-init {
-
-// così come suggerito da Stefania, dichiaramo tutte le eccezioni nell'init
-// (una dichiarazione cumulativa per tutti i throw invocati in ciascuna operazione);
-// qualora sia invece necessario intraprendere comportamenti specifici è bene definire l'install all'interno dello scope
-    scope( commonFaultScope ) {
-        install(    
-                IOException => println@Console( MARKET_DOWN_EXCEPTION )(),
-                PlayerDuplicatedException => println@Console( PLAYER_DUPLICATED_EXCEPTION + 
-                                              " (" + commonFaultScope.PlayerDuplicatedException.playerName + ")")(),
-                StockUnknownException => println@Console( PLAYER_DUPLICATED_EXCEPTION + 
-                                              " (" + commonFaultScope.StockUnknownException.stockName + ")")()
-              )
-    }
-}
-
 //Il Player aggiorna il suo status (liquidità e stock posseduti) in funzione
 //dell'esito delle sue operazioni
 
@@ -78,8 +61,32 @@ define randGenStock {
     }
 }
 
-
 main {
+
+// TODO:
+// le eccezioni installate (e quindi catturate), qualora si presentino, di fatto interrompono l'esecuzione del main;
+// è necessario pensare ad un qualche metodo di recovery per proseguire con le attività di acquisto | vendita
+// pur segnalando e/o considerando le eccezioni catturate
+    install(
+// il player name è già in uso        
+            PlayerDuplicatedException =>        valueToPrettyString@StringUtils(  main.PlayerDuplicatedException )( result );
+                                                println@Console( "PlayerDuplicatedException\n" + result )(),
+// il player sta tentando di effettuare una transazione, ma non si è correttamente registrato presso il market
+            PlayerUnknownException =>           valueToPrettyString@StringUtils(  main.PlayerUnknownException )( result );
+                                                println@Console( "PlayerUnknownException\n" + result )(),                                                
+// lo stock ha terminato la sua disponibilità
+            StockAvailabilityException =>       valueToPrettyString@StringUtils(  main.StockAvailabilityException )( result );
+                                                println@Console( "StockAvailabilityException\n" + result )(),
+// il player tenta di acquistare uno stock inesistente
+            StockUnknownException =>            valueToPrettyString@StringUtils(  main.StockUnknownException )( result );
+                                                println@Console( "StockUnknownException\n" + result )(),
+// liquidità del player terminata
+            InsufficientLiquidityException =>   valueToPrettyString@StringUtils(  main.InsufficientLiquidityException )( result );
+                                                println@Console( "InsufficientLiquidityException\n" + result )(),
+// il player non dispone dello stock che sta tentando di vendere
+            NotOwnedStockException =>           valueToPrettyString@StringUtils(  main.NotOwnedStockException )( result );
+                                                println@Console( "NotOwnedStockException\n" + result )()
+    );
 
 /* Verifica lo stato del Market */
    checkMarketStatus@PlayerToMarketCommunication()( server_conn );
@@ -108,6 +115,13 @@ main {
 
     while ( server_conn ) {
 
+// TODO.
+// la struttura dati nextBuy è condivisa dai 3 thread che partono in parallelo
+// poichè non sappiamo come verranno schedulati (non necessariamente nell'ordine indicato)
+// è possibile che siano effettuati 3 acquisti di Oro, così come 2 acquisti di Oro ed 1 di Petrolio, e così via...
+// E' altresì possibile che sia schedulata una vendita prima dell'acquisto, operazione che può generare una
+// NotOwnedStockException        
+       
         { nextBuy.stock = "Oro"; buy }
         |
         { nextSell.stock = "Oro"; sell }
@@ -120,17 +134,14 @@ main {
         |
         { nextSell.stock = "Petrolio"; sell }
         |
-            //{ nextBuy.stock = "OroBIANCO"; buy }
-            //|
-            //{ nextSell.stock = "OroBIANCO"; sell }
-            //|
+
         infoStockList;
+
         randGenStock;
         infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
         println@Console("prezzo del: " + stockName + " = "  + responsePrice )();
         infoStockAvailability@PlayerToMarketCommunication( stockName )( responseAvailability );
         println@Console("disponibilità di: " + stockName + " = " + responseAvailability )();
-
 
 // BOOM BOOM BOOM every 3 seconds
         sleep@Time( 3000 )();

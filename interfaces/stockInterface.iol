@@ -47,7 +47,7 @@ type StockVariationStruct: void {
 interface StockInstanceInterface {
 // TODO: si vedano gli specifici todo all'interno di Stock.ol in relazione alle operazioni indicate
 // (in sintesi dobbiam capire cosa / se / come strutturare la response)
-// messo boolean come response
+// messo boolean come response | TODO: è davvero necessario?    
     RequestResponse: start( StockSubStruct )( void )
     RequestResponse: buyStock( void )( bool )
     RequestResponse: sellStock( void )( bool )
@@ -58,17 +58,15 @@ interface StockInstanceInterface {
 interface StockToMarketCommunicationInterface {
     RequestResponse: registerStock( StockRegistrationStruct )( bool ) throws StockDuplicatedException( StockNameExceptionType )
 
-// TODO: sicuri non sia necessaria una RequestResponse ?
     OneWay: addStock( StockVariationStruct )
     OneWay: destroyStock( StockVariationStruct )
 }
 
 // from market to stocks (passando per StocksMng.ol)
 interface MarketToStockCommunicationInterface {
-// TODO: si vedano gli specifici todo all'interno di Stock.ol in relazione alle operazioni indicate
-// (in sintesi dobbiam capire cosa / se / come struttura la response)
-// messo boolean come response
-    RequestResponse: buyStock( string )( bool ) throws StockUnknownException( StockNameExceptionType )
-    RequestResponse: sellStock( string )( bool ) throws StockUnknownException( StockNameExceptionType )
+// messo boolean come response | TODO: è davvero necessario?
+    RequestResponse: buyStock( string )( bool ) throws  StockUnknownException( StockNameExceptionType )
+                                                        StockAvailabilityException( StockNameExceptionType )
+    RequestResponse: sellStock( string )( bool ) throws StockUnknownException( StockNameExceptionType ) 
     RequestResponse: infoStockAvailability( string )( int ) throws StockUnknownException( StockNameExceptionType )
 }
