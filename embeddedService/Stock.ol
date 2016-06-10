@@ -207,7 +207,7 @@ main {
 // Beh, direi di si. Il problema è riconducibile al paradigma dei lettori | scrittori.
 // Posso favorire letture simultanee (prive di alcuna interferente scrittura); ma debbo prevenire
 // letture e scritture simultanee (il lettore potrebbe leggere dati incongruenti, parzialmente scritti)
-// ... da riguardare ...   
+// ... da riguardare ...
         synchronized( syncToken ) {
             response = me.dynamic.availability
         }

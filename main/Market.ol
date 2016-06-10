@@ -37,13 +37,6 @@ inputPort PlayerToMarketCommunication { // utilizzata dai player per inviare ric
 
 
 
-// utile funzione di supporto all'arrotondamento
-// ("prende in input" toRound, "restituisce" roundedValue)
-define round {
-    roundRequest = toRound;
-    roundRequest.decimals = DECIMAL_ROUNDING;
-    round@Math( roundRequest )( roundedValue )
-}
 
 // le seguenti define snelliscono il codice all'interno di buyStock e sellStock ed offrono:
 // gestione del timing e algoritmo di pricing
@@ -61,54 +54,79 @@ define timeCalc {
         println@Console( ">>> BUYSTOCK || SELLSTOCK; timeCalc, " + currentStock.name + ", differenza timer " + DELTA )()
 }
 
-define priceDec {
-// calcolo il prezzo unitario a partire dal prezzo totale (prezzo totale / numero di stock)
-    price = currentStock.totalPrice * ( double( 1.0 ) / double( availability ));
 
-// applico l'algoritmo di pricing, rispetto al tempo intercorso dalla precedente operazione
-    if ( DELTA < 1000 ) {
-        price -= price * 0.0001
-    } else if ( DELTA >= 1000 && DELTA < 2000 ) {
-        price -= price * 0.001
-    } else { // (DELTA >= 2000)
-        price -= price * 0.01
-    };
 
-    toRound = price; round; priceVariation = roundedValue
+// utile funzione di supporto all'arrotondamento
+// ("prende in input" toRound, "restituisce" roundedValue)
+define round {
+    roundRequest = toRound;
+    roundRequest.decimals = DECIMAL_ROUNDING;
+    round@Math( roundRequest )( roundedValue )
 }
 
-define priceInc {
-// calcolo il prezzo unitario    
-    price = currentStock.totalPrice * ( double( 1.0 ) / double( availability ));
+define variationCalc {
+// calcolo il prezzo unitario a partire dal prezzo totale (prezzo totale / numero di stock)
+    unitPrice = currentStock.totalPrice * ( double( 1.0 ) / double( availability ));
 
     if ( DELTA < 1000 ) {
-        price += price * 0.0001
+        priceVariation = unitPrice * 0.0001
     } else if ( DELTA >= 1000 && DELTA < 2000 ) {
-        price += price * 0.001
+        priceVariation = unitPrice * 0.001
     } else { // (DELTA >= 2000)
-        price += price * 0.01
-    };
+        priceVariation = unitPrice * 0.01
+    }
+}    
 
-    toRound = price; round; priceVariation = roundedValue
+define priceDec {
+    variationCalc;
+    unitPrice -= priceVariation;
+    toRound = unitPrice; round; priceVariation = roundedValue
+}
+define priceInc {
+    variationCalc;
+    unitPrice += priceVariation;
+    toRound = unitPrice; round; priceVariation = roundedValue
 }
 
 
 
 // shortcut per il release del semaforo associato allo stock
-define releaseSemaphore {
+define releaseStockSemaphore {
     toRelease -> global.registeredStocks.( stockName )[ 0 ].semaphore;
     release@SemaphoreUtils( toRelease )( response )
 }
 
 // creo un semaforo per lo stock (all'interno della struttura dati degli stock registrati);
 // sarà utile per sincronizzare l'accesso alle operazioni di: buy | sell | addStock | destroyStock
-define createSemaphore {
+define createStockSemaphore {
     with( global.registeredStocks.( stockName )[ 0 ].semaphore ) {
             .name = stockName;
-            .permits = 1
+            .permits = 0
         };
 // effettuo una release: devo produrre almeno un token da acquisire
-    releaseSemaphore
+    releaseStockSemaphore
+}
+
+
+
+// shortcut per il release del semaforo associato al player
+define releasePlayerSemaphore {
+    toRelease -> global.accounts.( playerName )[ 0 ].semaphore;
+    release@SemaphoreUtils( toRelease )( response )
+}
+
+// creo un semaforo per il player (all'interno della struttura dati dei player registrati);
+// sarà utile per sincronizzare l'accesso alle operazioni di: buy | sell
+// ciascun player non può effettuare più operazioni in contemporanea di acquisto e vendita,
+// pena il generarsi di eventuali interferenze sulla struttura ad esso associata
+// (si pensi, ad esempio, all'accesso concorrente sull'informazione di liquidità)
+define createPlayerSemaphore {
+    with( global.accounts.( playerName )[ 0 ].semaphore ) {
+            .name = playerName;
+            .permits = 0
+        };
+// effettuo una release: devo produrre almeno un token da acquisire
+    releasePlayerSemaphore
 }
 
 
@@ -120,7 +138,7 @@ init {
 // (una dichiarazione cumulativa per tutti i throw invocati in ciascuna operazione);
 // qualora sia invece necessario intraprendere comportamenti specifici è bene definire l'install all'interno dello scope
     install(
-// uno stock con lo stesso nome tente una nuova registrazione
+// uno stock con lo stesso nome tenta una nuova registrazione
                 StockDuplicatedException => throw( StockDuplicatedException ),
 // un player tenta di acquistare uno stock inesistente
                 StockUnknownException => throw( StockUnknownException ),
@@ -183,7 +201,7 @@ newStock.totalPrice
 // creo un semaforo per lo stock; sarà utile per sincronizzare l'accesso alle operazioni di:
 // buy | sell | addStock | destroyStock
             stockName = newStock.name;
-            createSemaphore
+            createStockSemaphore
 
         } else {
             /* esiste uno stock con lo stesso nome è già registrato al market
@@ -207,20 +225,23 @@ newStock.totalPrice
 * dichiarata da nessuna parte, viene semplicemente creata quando arriva il
 * primo player.
 */
+
 // Richiesta in entrata dal Player
     [ registerPlayer( incomingPlayer )( newAccount ) {
 
-    // Caso in cui il Player è nuovo
+// Caso in cui il Player è nuovo
         if ( ! is_defined( global.accounts.( incomingPlayer ) )) {
             global.accounts.( incomingPlayer ) = incomingPlayer;
             global.accounts.( incomingPlayer ).liquidity = double( DEFAULT_PLAYER_LIQUIDITY );
-            newAccount << global.accounts.( incomingPlayer )
+            newAccount << global.accounts.( incomingPlayer );
 
-    // Caso in cui il player sia già presente, non dovrebbe
-    // verificarsi; tuttavia intercetto e rilancio un'eventuale eccezione
+// creo un semaforo per il player; sarà utile per sincronizzare l'accesso alle operazioni di buy | sell
+            playerName = incomingPlayer;
+            createPlayerSemaphore
+
+// Caso in cui il player sia già presente, non dovrebbe
+// verificarsi; tuttavia intercetto e rilancio un'eventuale eccezione
         } else {
-
-// TODO: da intercettare all'interno del player
             throw( PlayerDuplicatedException, { .playerName = incomingPlayer })
         }
 
@@ -258,6 +279,10 @@ newStock.totalPrice
             throw( StockUnknownException, exceptionMessage )
         };
 
+// 2 ulteriori shortcut
+        stockName = transactionRequest.stock;
+        playerName = transactionRequest.player;
+
         scope( buyStockScope ) {
 
 // qualora siano invocate le seguenti eccezioni, prima di rilanciarle è indispensabile rilasciare il semaforo
@@ -265,38 +290,35 @@ newStock.totalPrice
             install(
 
 // un player tenta di acquistare uno stock inesistente (rilanciata dallo stock)
-                    StockUnknownException =>    stockName = buyStockScope.StockUnknownException.stockName;
-                                                releaseSemaphore;
+                    StockUnknownException =>    releaseStockSemaphore; releasePlayerSemaphore;
                                                 throw( StockUnknownException, buyStockScope.StockUnknownException ),
 // lo stock ha terminato la sua disponibilità                
-                    StockAvailabilityException =>   stockName = buyStockScope.StockAvailabilityException.stockName;
-                                                    releaseSemaphore;
+                    StockAvailabilityException =>   releaseStockSemaphore; releasePlayerSemaphore;
                                                     throw( StockAvailabilityException, buyStockScope.StockAvailabilityException ),
 // liquidità del player terminata
-                    InsufficientLiquidityException =>   stockName = buyStockScope.InsufficientLiquidityException.stockName;
-                                                        releaseSemaphore;
+                    InsufficientLiquidityException =>   releaseStockSemaphore; releasePlayerSemaphore;
                                                         throw( InsufficientLiquidityException, buyStockScope.InsufficientLiquidityException )
                 );
 
+// acquisisco il lock sullo stock; evito che si svolgano operazioni parallele sullo stesso stock
             acquire@SemaphoreUtils( currentStock.semaphore )( response );
-/*
-            valueToPrettyString@StringUtils( currentStock.semaphore )( result );
-            println@Console( result )();
-*/
+// acquisisco il lock sul player; evito che lo stesso player svolga operazioni di acquisto e vendita in contemporanea
+            acquire@SemaphoreUtils( currentPlayer.semaphore )( response );
+
             if ( DEBUG )
                 println@Console( ">>> BUYSTOCK acquisito semaforo per lo stock " + transactionRequest.stock )();
 
             if ( DEBUG ) {
-                    println@Console( ">>> BUYSTOCK " + transactionRequest.stock + " >>> PLAYER: " + transactionRequest.player +
+                    println@Console( ">>> BUYSTOCK " + stockName + " >>> PLAYER: " + playerName +
                         " >>> PLAYER cash: " + currentPlayer.liquidity +
                         " >>> TOTALEPREZZO Stock: " + currentStock.totalPrice )()
             };
 
 // richiedo la quantità disponibile per lo stock
 // è lanciato un fault qualora la disponibilità sia esaurita
-            infoStockAvailability@MarketToStockCommunication( transactionRequest.stock )( availability );
+            infoStockAvailability@MarketToStockCommunication( stockName )( availability );
             if ( availability <= 0) {
-                with( exceptionMessage ) { .stockName = transactionRequest.stock };
+                with( exceptionMessage ) { .stockName = stockName };
                 throw( StockAvailabilityException, exceptionMessage )
             };
 
@@ -320,13 +342,13 @@ newStock.totalPrice
 // può generare StockUnknownException || StockAvailabilityException;
 // risponde con un boolean TRUE qualora l'operazione sia andata a buon fine;
 // (1) l’unità di Stock disponibile viene decrementata di 1
-            buyStock@MarketToStockCommunication( transactionRequest.stock )( response );
+            buyStock@MarketToStockCommunication( stockName )( response );
 // Se l'operazione di buyStock è andata a buon fine effettua anche le altre operazioni
 //            if ( response ) {
 // è chiaro che l'operazione sia andata a buon fine; altrimenti è sollevato un fault
 
 // (2) si aumenta di 1 la quantità di Stock posseduto dal Player acquirente
-            currentPlayer.ownedStock.( transactionRequest.stock ).quantity++;
+            currentPlayer.ownedStock.( stockName ).quantity++;
 
 // (3) si decrementa l’Account del Player dell’attuale prezzo di un’unità di Stock
             currentPlayer.liquidity -= currentPrice;
@@ -342,7 +364,7 @@ newStock.totalPrice
 
 // Inizializza la struttura della receipt
             with( receipt ) {
-                .stock = transactionRequest.stock;
+                .stock = stockName;
                 .kind = 1;
                 .esito = true;
                 .price = 0 - currentPrice
@@ -351,6 +373,7 @@ newStock.totalPrice
 // TO REMOVE, for debug purpose only =)
 //            println@Console( "Aspetto 3 secondi prima di rilasciare il semaforo su " + transactionRequest.stock )();
 //            sleep@Time( 3000 )();
+            release@SemaphoreUtils( currentPlayer.semaphore )( response );
             release@SemaphoreUtils( currentStock.semaphore )( response )
         }
 
@@ -383,7 +406,9 @@ newStock.totalPrice
             throw( StockUnknownException, exceptionMessage )
         };
 
-
+// 2 ulteriori shortcut
+        stockName = transactionRequest.stock;
+        playerName = transactionRequest.player;
 
         scope( sellStockScope ) {
 
@@ -392,39 +417,35 @@ newStock.totalPrice
             install(
 
 // un player tenta di acquistare uno stock inesistente (rilanciata dallo stock)
-                    StockUnknownException =>    stockName = sellStockScope.StockUnknownException.stockName;
-                                                releaseSemaphore;
+                    StockUnknownException =>    releaseStockSemaphore; releasePlayerSemaphore;
                                                 throw( StockUnknownException, sellStockScope.StockUnknownException ),
 
 // un player tenta di vendere uno stock che non possiede
-                    NotOwnedStockException =>   stockName = sellStockScope.NotOwnedStockException.stockName;
-                                                releaseSemaphore;
+                    NotOwnedStockException =>   releaseStockSemaphore; releasePlayerSemaphore;
                                                 throw( NotOwnedStockException, sellStockScope.NotOwnedStockException )
                 );
 
-// http://docs.jolie-lang.org/#!documentation/jsl/SemaphoreUtils.html
-// a differenza di synchronized, è possibile associare una specifica label al semaforo;
-// la label equivale al nome dello stock; prevengo quindi l'acquisto | vendita simultanea dello stesso stock
-// ma non di stock differenti
+// acquisisco il lock sullo stock; evito che si svolgano operazioni parallele sullo stesso stock
             acquire@SemaphoreUtils( currentStock.semaphore )( response );
+// acquisisco il lock sul player; evito che lo stesso player svolga operazioni di acquisto e vendita in contemporanea
+            acquire@SemaphoreUtils( currentPlayer.semaphore )( response );
+
 /*
             valueToPrettyString@StringUtils( currentStock.semaphore )( result );
             println@Console( result )();
 */
             if ( DEBUG )
-                println@Console( ">>> SELLSTOCK acquisito semaforo per lo stock " + transactionRequest.stock )();
-
-            currentPlayer -> global.accounts.( transactionRequest.player )[ 0 ];
+                println@Console( ">>> SELLSTOCK acquisito semaforo per lo stock " + stockName )();
 
 // il player dispone dello stock che vuol vendere?
-            if ( ! is_defined( currentPlayer.ownedStock.( transactionRequest.stock ) ) || 
-                ( currentPlayer.ownedStock.( transactionRequest.stock ).quantity <= 0 ) ) {
-                with( exceptionMessage ) { .stockName = transactionRequest.stock };
+            if ( ! is_defined( currentPlayer.ownedStock.( stockName) ) || 
+                ( currentPlayer.ownedStock.( stockName ).quantity <= 0 ) ) {
+                with( exceptionMessage ) { .stockName = stockName };
                 throw( NotOwnedStockException, exceptionMessage )
             };
 
 // richiedo la quantità disponibile per lo stock
-            infoStockAvailability@MarketToStockCommunication( transactionRequest.stock )( availability );
+            infoStockAvailability@MarketToStockCommunication( stockName )( availability );
 // qualora la disponbilità sia esaurita o pari a 1, il prezzo unitario corrisponderà al prezzo totale            
             if ( availability <= 1 ) {
                 currentPrice = currentStock.totalPrice
@@ -437,13 +458,13 @@ newStock.totalPrice
 // può generare StockUnknownException 
 // risponde con un boolean TRUE qualora l'operazione sia andata a buon fine;
 // (1) l’unità di Stock disponibile viene incrementata di 1
-            sellStock@MarketToStockCommunication( transactionRequest.stock )( response );
+            sellStock@MarketToStockCommunication( stockName )( response );
 // Se l'operazione di sellStock è andata a buon fine effettua anche le altre operazioni
 //            if ( response ) {
 // è chiaro che l'operazione sia andata a buon fine; altrimenti è sollevato un fault
 
 // (2) si decrementa di 1 la quantità di Stock posseduto dal Player venditore;
-            currentPlayer.ownedStock.( transactionRequest.stock ).quantity--;
+            currentPlayer.ownedStock.( stockName ).quantity--;
 
 // (3) si incrementa l’Account del Player dell’attuale prezzo di un’unità di Stock
             currentPlayer.liquidity += currentPrice;
@@ -460,7 +481,7 @@ newStock.totalPrice
 
 // Inizializza la struttura della receipt
             with( receipt ) {
-                .stock = transactionRequest.stock;
+                .stock = stockName;
                 .kind = -1;
                 .esito = true;
                 .price = currentPrice
@@ -469,6 +490,7 @@ newStock.totalPrice
 // TO REMOVE, for debug purpose only =)
 //            println@Console( "Aspetto 3 secondi prima di rilasciare il semaforo su " + transactionRequest.stock )();
 //            sleep@Time( 3000 )();
+            release@SemaphoreUtils( currentPlayer.semaphore )( response );
             release@SemaphoreUtils( currentStock.semaphore )( response )
         }
 
@@ -477,6 +499,8 @@ newStock.totalPrice
 
 
 // operazione invocata dal Player; restituisce la lista degli stock registrati, attualmente presenti
+// TODO: occhio, potrebbero verificarsi letture e scritture simultanee, nel momento in cui si registri un nuovo
+// stock e contemporaneamente un player ne richieda la lista
     [ infoStockList( info )( responseInfo ) {
         i = 0;
         foreach ( stockName : global.registeredStocks ) {
@@ -492,13 +516,15 @@ newStock.totalPrice
 // TODO: a me 'sta cosa non convince un granchè. Sto effettuando dei calcoli su totalPrice senza alcun tipo
 // di "protezione" sull'accesso alla risorsa condivisa. E se contemporaneamente il prezzo subisse
 // una qualche modifica a seguito di un'operazione di acquisto | vendita? uhmm..
+// è necessario gestire l'accesso alla risorsa mediante semaforo    
     [ infoStockPrice( stockName )( responsePrice ) {
         if ( DEBUG ) println@Console( ">>> infoStockPrice nome "  + stockName )();
 
         infoStockAvailability@MarketToStockCommunication( stockName )( availability );
 
         if ( is_defined( global.registeredStocks.( stockName ) )) {
-            responsePrice = global.registeredStocks.( stockName ).totalPrice / availability
+            responsePrice = global.registeredStocks.( stockName ).totalPrice / availability;
+            toRound = responsePrice; round; responsePrice = roundedValue
         } else {
         // Caso in cui lo Stock richiesto dal Player non esista
             throw( StockUnknownException, { .stockName = stockName })
