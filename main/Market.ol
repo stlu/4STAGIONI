@@ -532,7 +532,7 @@ newStock.totalPrice
         } else {
         // Caso in cui lo Stock richiesto dal Player non esista
             throw( StockUnknownException, { .stockName = stockName })
-        }
+        };
 
         release@SemaphoreUtils( me.semaphore )()        
 
