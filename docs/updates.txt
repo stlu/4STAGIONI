@@ -1,7 +1,6 @@
 2016_10_05 Pardox
 - Gestione "semaforica" anche per i player. Adesso -teoricamente- possiamo avviare qualsiasi
     operazioni di acquisto e vendita da più player senza generare alcun tipo di interferenza (spero).
-    Rimangono parzialmente scoperte infoStockPrice@Market e infoStockList@Market
 
 2016_09_05 Pardox
 - Effettute modifiche sostanziali a buyStock@Market e sellStock@Market introducendo l'utilizzo

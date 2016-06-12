@@ -516,9 +516,13 @@ newStock.totalPrice
 // TODO: a me 'sta cosa non convince un granchè. Sto effettuando dei calcoli su totalPrice senza alcun tipo
 // di "protezione" sull'accesso alla risorsa condivisa. E se contemporaneamente il prezzo subisse
 // una qualche modifica a seguito di un'operazione di acquisto | vendita? uhmm..
-// è necessario gestire l'accesso alla risorsa mediante semaforo    
+// è necessario gestire l'accesso alla risorsa mediante semaforo
+// UPDATE: fatto.
     [ infoStockPrice( stockName )( responsePrice ) {
         if ( DEBUG ) println@Console( ">>> infoStockPrice nome "  + stockName )();
+
+        me -> global.registeredStocks.( stockName ); // shortcut
+        acquire@SemaphoreUtils( me.semaphore )();
 
         infoStockAvailability@MarketToStockCommunication( stockName )( availability );
 
@@ -529,11 +533,16 @@ newStock.totalPrice
         // Caso in cui lo Stock richiesto dal Player non esista
             throw( StockUnknownException, { .stockName = stockName })
         }
+
+        release@SemaphoreUtils( me.semaphore )()        
+
     } ] { nullProcess }
 
 
 
-// operazione invocata dal Player; restituisce l'informazione availability correlata allo stock richiesto
+// operazione invocata dal Player; restituisce l'informazione availability correlata allo stock richiesto;
+// in questo caso a mio parere non è necessario utilizzare alcun semaforo; la richiesta è inoltrata
+// all'omonima operazione sullo Stock che, al suo interno, già prevedere un blocco synchronized.
     [ infoStockAvailability( stockName )( responseAvailability ) {
         if ( is_defined( global.registeredStocks.( stockName ) )) {
             infoStockAvailability@MarketToStockCommunication( stockName )( responseAvailability )
@@ -573,7 +582,6 @@ newStock.totalPrice
             throw( StockUnknownException, { .stockName = stockName });
 
         me -> global.registeredStocks.( stockVariation.name ); // shortcut
-
         acquire@SemaphoreUtils( me.semaphore )();
 
         oldPrice = me.totalPrice;
@@ -609,7 +617,6 @@ newStock.totalPrice
             throw( StockUnknownException, { .stockName = stockName });
 
         me -> global.registeredStocks.( stockVariation.name ); // shortcut
-
         acquire@SemaphoreUtils( me.semaphore )();
 
 // da specifiche: "il prezzo di uno Stock non può mai scendere sotto il valore di 10;"

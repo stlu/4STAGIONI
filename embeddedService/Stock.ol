@@ -147,6 +147,7 @@ main {
 
 
 // TODO: che tipo di risposta inviare al market? un boolean?
+// oppure è sufficiente innescare un'eccezione    
     [ buyStock()( response ) {
 
         getProcessId@Runtime()( processId );
