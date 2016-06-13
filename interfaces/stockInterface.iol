@@ -61,7 +61,6 @@ interface StockToMarketCommunicationInterface {
 
 // from market to stocks (passando per StocksMng.ol)
 interface MarketToStockCommunicationInterface {
-// messo boolean come response | TODO: è davvero necessario?
     RequestResponse: buyStock( string )( bool ) throws  StockUnknownException( StockNameExceptionType )
                                                         StockAvailabilityException( StockNameExceptionType )
     RequestResponse: sellStock( string )( bool ) throws StockUnknownException( StockNameExceptionType ) 
