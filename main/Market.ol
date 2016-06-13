@@ -75,7 +75,7 @@ define variationCalc {
     } else { // (DELTA >= 2000)
         priceVariation = unitPrice * 0.01
     }
-}    
+}
 
 define priceDec {
     variationCalc;
@@ -184,24 +184,25 @@ newStock.totalPrice
                 println@Console( "\nMarket@registerStock, newStock:" + result )()
             };
 
+// nel caso l'operazione registerStock non sia conclusa, ma sia il player richieda infoStockList?
+
             global.registeredStocks.( newStock.name )[ 0 ].totalPrice = newStock.totalPrice;
             me -> global.registeredStocks.( newStock.name )[ 0 ];
             me.name = newStock.name;
 
-// TODO: timer correlato all'algoritmo di pricing; funziona correttamente?
-// Pekyntosh: beh, sembra proprio di si...            
+// timer correlato all'algoritmo di pricing
             getCurrentTimeMillis@Time()( T1 );
             me.time1 = T1;
-
-// TODO: qualora l'operazione sia andata a buon fine risponde true; ma l'operazione è chiaramente andata a buon
-// fine, altrimenti viene lanciato un fault. Questa response potrebbe essere superflua.
-// si veda registerStock@StockToMarketCommunication all'interno di Stock.ol (ovvero l'invocante)
-            response = true;
 
 // creo un semaforo per lo stock; sarà utile per sincronizzare l'accesso alle operazioni di:
 // buy | sell | addStock | destroyStock
             stockName = newStock.name;
-            createStockSemaphore
+            createStockSemaphore;
+
+// fintantochè questa variabile non è impostata non potrà esser svolta alcuna operazione relativa allo stock (is_defined)            
+            me.registrationCompleted = true;
+
+            response = true
 
         } else {
             /* esiste uno stock con lo stesso nome è già registrato al market
@@ -237,7 +238,10 @@ newStock.totalPrice
 
 // creo un semaforo per il player; sarà utile per sincronizzare l'accesso alle operazioni di buy | sell
             playerName = incomingPlayer;
-            createPlayerSemaphore
+            createPlayerSemaphore;
+
+// fintantochè questa variabile non è impostata, il player non potrà effettuare alcuna operazione (is_defined)
+            global.accounts.( incomingPlayer ).registrationCompleted = true
 
 // Caso in cui il player sia già presente, non dovrebbe
 // verificarsi; tuttavia intercetto e rilancio un'eventuale eccezione
@@ -266,7 +270,7 @@ newStock.totalPrice
         currentStock -> global.registeredStocks.( transactionRequest.stock )[ 0 ];
 
 // lancio un fault qualora il player non sia correttamente registrato
-        if ( ! is_defined( currentPlayer )) {
+        if ( ! is_defined( currentPlayer.registrationCompleted )) {
             with( exceptionMessage ){
                 .playerName = transactionRequest.player
             };
@@ -274,7 +278,7 @@ newStock.totalPrice
         };
 
 // lancio un fault qualora lo stock richiesto non sia correttamente registrato
-        if ( ! is_defined( currentStock )) {
+        if ( ! is_defined( currentStock.registrationCompleted )) {
             with( exceptionMessage ) { .stockName = transactionRequest.stock };
             throw( StockUnknownException, exceptionMessage )
         };
@@ -393,7 +397,7 @@ newStock.totalPrice
         currentStock -> global.registeredStocks.( transactionRequest.stock )[ 0 ];
 
 // lancio un fault qualora il player non sia correttamente registrato
-        if ( ! is_defined( currentPlayer )) {
+        if ( ! is_defined( currentPlayer.registrationCompleted )) {
             with( exceptionMessage ){
                 .playerName = transactionRequest.player
             };
@@ -401,7 +405,7 @@ newStock.totalPrice
         };
 
 // lancio un fault qualora lo stock richiesto non sia correttamente registrato
-        if ( ! is_defined( currentStock )) {
+        if ( ! is_defined( currentStock.registrationCompleted )) {
             with( exceptionMessage ) { .stockName = transactionRequest.stock };
             throw( StockUnknownException, exceptionMessage )
         };
@@ -477,7 +481,7 @@ newStock.totalPrice
             currentStock.totalPrice -= priceVariation;
             toRound = currentStock.totalPrice; round; currentStock.totalPrice = roundedValue;
 
-            if ( DEBUG ) println@Console(">>> SELLSTOCK decremento il prezzo di: " + priceVariation )();
+            if ( DEBUG ) println@Console( ">>> SELLSTOCK decremento il prezzo di: " + priceVariation )();
 
 // Inizializza la struttura della receipt
             with( receipt ) {
@@ -499,42 +503,50 @@ newStock.totalPrice
 
 
 // operazione invocata dal Player; restituisce la lista degli stock registrati, attualmente presenti
-// TODO: occhio, potrebbero verificarsi letture e scritture simultanee, nel momento in cui si registri un nuovo
-// stock e contemporaneamente un player ne richieda la lista
+// potrebbero verificarsi letture e scritture simultanee, nel momento in cui si registri un nuovo
+// stock e contemporaneamente un player ne richieda la lista, ma il controllo su registrationCompleted
+// previene l'insorgere di tale casistica    
     [ infoStockList( info )( responseInfo ) {
         i = 0;
         foreach ( stockName : global.registeredStocks ) {
-            responseInfo.name[i] = global.registeredStocks.(stockName).name;
-            i = i + 1
+            if ( is_defined( global.registeredStocks.( stockName ).registrationCompleted )) {
+                responseInfo.name[ i ] = global.registeredStocks.( stockName ).name;
+                i = i + 1
+            }
         }
     } ] { nullProcess }
 
 
 
 // operazione invocata dal Player; restituisce il prezzo corrente di uno specifico stock (double)
-//    
-// TODO: a me 'sta cosa non convince un granchè. Sto effettuando dei calcoli su totalPrice senza alcun tipo
+// Sto effettuando dei calcoli su totalPrice senza alcun tipo
 // di "protezione" sull'accesso alla risorsa condivisa. E se contemporaneamente il prezzo subisse
-// una qualche modifica a seguito di un'operazione di acquisto | vendita? uhmm..
-// è necessario gestire l'accesso alla risorsa mediante semaforo
-// UPDATE: fatto.
-    [ infoStockPrice( stockName )( responsePrice ) {
+// una qualche modifica a seguito di un'operazione di acquisto | vendita?
+// La casistica non può presentarsi perchè il semaforo regola l'accesso alla sezione critica
+    [ infoStockPrice( stockName )( currentPrice ) {
         if ( DEBUG ) println@Console( ">>> infoStockPrice nome "  + stockName )();
 
         me -> global.registeredStocks.( stockName ); // shortcut
-        acquire@SemaphoreUtils( me.semaphore )();
 
-        infoStockAvailability@MarketToStockCommunication( stockName )( availability );
+        if ( is_defined( me.registrationCompleted )) {
+            acquire@SemaphoreUtils( me.semaphore )();
 
-        if ( is_defined( global.registeredStocks.( stockName ) )) {
-            responsePrice = global.registeredStocks.( stockName ).totalPrice / availability;
-            toRound = responsePrice; round; responsePrice = roundedValue
+            infoStockAvailability@MarketToStockCommunication( stockName )( availability );
+// qualora la disponbilità sia esaurita o pari a 1, il prezzo unitario corrisponderà al prezzo totale
+            if ( availability <= 1 ) {
+                currentPrice = me.totalPrice
+            } else {
+// calcolo il prezzo unitario
+                currentPrice = me.totalPrice / availability;
+                toRound = currentPrice; round; currentPrice = roundedValue
+            };
+
+            release@SemaphoreUtils( me.semaphore )()
+
         } else {
         // Caso in cui lo Stock richiesto dal Player non esista
             throw( StockUnknownException, { .stockName = stockName })
-        };
-
-        release@SemaphoreUtils( me.semaphore )()        
+        }
 
     } ] { nullProcess }
 
@@ -544,7 +556,7 @@ newStock.totalPrice
 // in questo caso a mio parere non è necessario utilizzare alcun semaforo; la richiesta è inoltrata
 // all'omonima operazione sullo Stock che, al suo interno, già prevedere un blocco synchronized.
     [ infoStockAvailability( stockName )( responseAvailability ) {
-        if ( is_defined( global.registeredStocks.( stockName ) )) {
+        if ( is_defined( global.registeredStocks.( stockName ).registrationCompleted )) {
             infoStockAvailability@MarketToStockCommunication( stockName )( responseAvailability )
         } else {
 // caso in cui lo Stock richiesto dal Player non esista
@@ -577,11 +589,11 @@ newStock.totalPrice
         valueToPrettyString@StringUtils( stockVariation )( result );
         println@Console( result )();
 */
-
-        if ( ! is_defined( global.registeredStocks.( stockVariation.name ) ))
-            throw( StockUnknownException, { .stockName = stockName });
-
         me -> global.registeredStocks.( stockVariation.name ); // shortcut
+
+        if ( ! is_defined( me.registrationCompleted ))
+            throw( StockUnknownException, { .stockName = stockName });
+        
         acquire@SemaphoreUtils( me.semaphore )();
 
         oldPrice = me.totalPrice;
@@ -613,10 +625,10 @@ newStock.totalPrice
         println@Console( result )();
 */
 
-        if ( ! is_defined( global.registeredStocks.( stockVariation.name ) ))
+        me -> global.registeredStocks.( stockVariation.name ); // shortcut
+        if ( ! is_defined( me.registrationCompleted ))
             throw( StockUnknownException, { .stockName = stockName });
 
-        me -> global.registeredStocks.( stockVariation.name ); // shortcut
         acquire@SemaphoreUtils( me.semaphore )();
 
 // da specifiche: "il prezzo di uno Stock non può mai scendere sotto il valore di 10;"

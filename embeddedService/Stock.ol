@@ -78,7 +78,6 @@ main {
     [ registration() ] {
 
 // ho inserito il seguente scope per garantire la stampa di registrationScope.StockDuplicatedException.stockName
-// TODO: soluzione più elegante?
         scope ( registrationScope ) {
 
             install(
@@ -106,7 +105,6 @@ main {
             registrationStruct.name = me.static.name;
             registrationStruct.totalPrice = me.static.info.totalPrice;
 
-// TODO: al momento riceve un bool true; è davvero necessario?
             registerStock@StockToMarketCommunication( registrationStruct )( response );
 
 // posso adesso avviare l'operazione di wasting (deperimento), ovvero un thread parallelo e indipendente (definito
@@ -146,8 +144,6 @@ main {
 
 
 
-// TODO: che tipo di risposta inviare al market? un boolean?
-// oppure è sufficiente innescare un'eccezione    
     [ buyStock()( response ) {
 
         getProcessId@Runtime()( processId );
@@ -162,16 +158,11 @@ main {
                 if ( DEBUG )
                     println@Console("Sono " + me.static.name + " (processId: " + processId+ "); decremento la disponibilità di stock")();
 
-// TODO: a mio avviso la seguente response è ridondante                
                 response = true
             } else {
 
                 if ( DEBUG )
                     println@Console("Sono " + me.static.name + " (processId: " + processId+ "); la disponibilità è terminata")();
-
-// TODO: a mio avviso la seguente response è ridondante;
-// il fault è correttamente intercettato da buyStock@Market
-                response = false;
 
                 throw( StockAvailabilityException, { .stockName = stockName } )
             }
@@ -181,8 +172,6 @@ main {
 
 
 
-// riflettere: possono presentarsi casistiche per le quali sia necessario sollevare un fault?
-// TODO: che tipo di risposta inviare al market? un boolean?
     [ sellStock()( response ) {
         getProcessId@Runtime()( processId );
 
@@ -196,7 +185,6 @@ main {
                 println@Console("Sono " + me.static.name + " (processId: " + processId+ "); incremento la disponibilità di stock")()
         };
 
-// TODO: a mio avviso la seguente response è ridondante
         response = true
     } ] { nullProcess }
 
@@ -204,11 +192,10 @@ main {
 
     [ infoStockAvailability()( response ) {
         me -> global.stockConfig;
-// TODO: dev'essere synchronized poichè potrebbero verificarsi letture e scritture simultanee. Sicuri?
+// DA DOCUMENTARE: dev'essere synchronized poichè potrebbero verificarsi letture e scritture simultanee. Sicuri?
 // Beh, direi di si. Il problema è riconducibile al paradigma dei lettori | scrittori.
 // Posso favorire letture simultanee (prive di alcuna interferente scrittura); ma debbo prevenire
 // letture e scritture simultanee (il lettore potrebbe leggere dati incongruenti, parzialmente scritti)
-// ... da riguardare ...
         synchronized( syncToken ) {
             response = me.dynamic.availability
         }
@@ -286,7 +273,6 @@ l’offerta del Grano, il Market aumenta il prezzo totale del Grano del 15%."
 
 E' quindi necessario comunicare al market un valore decimale da cui verrà poi calcolato un incremento di prezzo
 */
-
 
 // quantità deperita / quantità totale corrente
                         roundRequest = double( amount ) / double( me.dynamic.availability );

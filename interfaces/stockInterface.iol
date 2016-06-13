@@ -45,9 +45,6 @@ type StockVariationStruct: void {
 
 // interfaccia di comunicazione con ciascuna stock instance dinamicamente allocata (ed embeddata) all'interno di StocksMng.ol
 interface StockInstanceInterface {
-// TODO: si vedano gli specifici todo all'interno di Stock.ol in relazione alle operazioni indicate
-// (in sintesi dobbiam capire cosa / se / come strutturare la response)
-// messo boolean come response | TODO: è davvero necessario?    
     RequestResponse: start( StockSubStruct )( void )
     RequestResponse: buyStock( void )( bool )
     RequestResponse: sellStock( void )( bool )
