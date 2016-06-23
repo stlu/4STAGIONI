@@ -96,7 +96,7 @@ dynamicStockList.( stockName )[ 0 ].location
         );
 
 // dynamic lookup rispetto alla stringa stockName
-        if ( is_defined( global.dynamicStockList.( stockName )[ 0 ] )) {
+        if ( is_defined( global.dynamicStockList.( stockName )[ 0 ].instantianCompleted )) {
 // per comunicare con la specifica istanza, imposto a runtime la location della outputPort StockInstance
             StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
 // posso adesso avviare l'operazione sullo specifico stock: verrà eseguito il forward della response ricevuta
@@ -113,7 +113,7 @@ dynamicStockList.( stockName )[ 0 ].location
     [ sellStock( stockName )( response ) {
 
 // dynamic lookup rispetto alla stringa stockName
-        if ( is_defined( global.dynamicStockList.( stockName )[ 0 ] )) {
+        if ( is_defined( global.dynamicStockList.( stockName )[ 0 ].instantianCompleted )) {
 // per comunicare con la specifica istanza, imposto a runtime la location della outputPort StockInstance
             StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
 // posso adesso avviare l'operazione sullo specifico stock
@@ -134,7 +134,7 @@ dynamicStockList.( stockName )[ 0 ].location
 * porta 8000 | Client: Market | Server: StocksMng
 */
     [ infoStockAvailability( stockName )( response ) {
-        if ( is_defined( global.dynamicStockList.( stockName )[ 0 ])) {
+        if ( is_defined( global.dynamicStockList.( stockName )[ 0 ].instantianCompleted )) {
             StockInstance.location = global.dynamicStockList.( stockName )[ 0 ].location;
             infoStockAvailability@StockInstance()( response )
         } else {
@@ -259,7 +259,10 @@ effettuato un attento controllo sui nomi; il fault è tuttavia correttamente ges
 
 // aggiorno la dynamicStockList; il parametro location è di vitale importanza per la corretta identificazione delle istanze
                                     global.dynamicStockList.( stockName )[ 0 ].filename = currentFile;
-                                    global.dynamicStockList.( stockName )[ 0 ].location = StockInstance.location
+                                    global.dynamicStockList.( stockName )[ 0 ].location = StockInstance.location;
+
+// qualora sia creato il seguente nodo, le operazioni potranno essere correttamente evase                        
+                                    global.dynamicStockList.( stockName )[ 0 ].instantianCompleted = true
                                 }
                             }
                         }
