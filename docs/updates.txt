@@ -1,3 +1,13 @@
+2016_06_23 Fausto
+-Tirato su MonitorX in /main/Out che ora contiene il MonitorX.java, vari .class per lui e le sue
+    sottoclassi, MonitorX.jar che è necessario, e jolie.jar la libreria java per la connessione
+    a jolie.
+-Costruita interfaccia di MonitorX in Market.ol, outPort e costrutto embedded
+-Specificato tipo di dato per l'output in commonInterface.iol
+NOTA: Java Swing è nota per il fatto che da grane di portabilità, appena effettuati alcuni test
+ditemi com'è andata via mail!! Ora che ha una finestra sul mondo il nostro programma jolie non
+mi sembra affatto male, ottimo lavoro gente = )
+
 2016_10_05 Pardox
 - Gestione "semaforica" anche per i player. Adesso -teoricamente- possiamo avviare qualsiasi
     operazioni di acquisto e vendita da più player senza generare alcun tipo di interferenza (spero).

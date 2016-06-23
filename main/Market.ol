@@ -35,8 +35,18 @@ inputPort PlayerToMarketCommunication { // utilizzata dai player per inviare ric
     Interfaces: PlayerToMarketCommunicationInterface, MarketCommunicationInterface
 }
 
-
-
+//Comunicazione con il servizio java embeddato MonitorX: interfaccia, outputPort
+//e costrutto embedded
+interface MonitorXInterface {
+    OneWay: avviaMonitorX(void)
+    OneWay: printOut( OutData )
+}
+outputPort MonitorX {
+    Interfaces: MonitorXInterface
+}
+embedded {
+    Java: "Out.MonitorX" in MonitorX
+}
 
 // le seguenti define snelliscono il codice all'interno di buyStock e sellStock ed offrono:
 // gestione del timing e algoritmo di pricing
@@ -134,6 +144,8 @@ define createPlayerSemaphore {
 init {
     global.status = true; // se true il Market è aperto
 
+    avviaMonitorX@MonitorX();
+
 // così come suggerito da Stefania, dichiaramo tutte le eccezioni nell'init
 // (una dichiarazione cumulativa per tutti i throw invocati in ciascuna operazione);
 // qualora sia invece necessario intraprendere comportamenti specifici è bene definire l'install all'interno dello scope
@@ -190,6 +202,22 @@ newStock.totalPrice
             me -> global.registeredStocks.( newStock.name )[ 0 ];
             me.name = newStock.name;
 
+    // [MonitorX] Registrazione Stock
+
+            with (toPrint1) {
+                .type = "stockRegistration";
+                .screen = 3;
+                .stockName = me.name
+            };
+            with (toPrint2) {
+                .screen = 2;
+                .type = "stockRegistration";
+                .stockName = me.name
+            };
+
+            printOut@MonitorX(toPrint1);
+            printOut@MonitorX(toPrint2);
+
 // timer correlato all'algoritmo di pricing
             getCurrentTimeMillis@Time()( T1 );
             me.time1 = T1;
@@ -199,7 +227,7 @@ newStock.totalPrice
             stockName = newStock.name;
             createStockSemaphore;
 
-// fintantochè questa variabile non è impostata non potrà esser svolta alcuna operazione relativa allo stock (is_defined)            
+// fintantochè questa variabile non è impostata non potrà esser svolta alcuna operazione relativa allo stock (is_defined)
             me.registrationCompleted = true;
 
             response = true
@@ -235,6 +263,22 @@ newStock.totalPrice
             global.accounts.( incomingPlayer ) = incomingPlayer;
             global.accounts.( incomingPlayer ).liquidity = double( DEFAULT_PLAYER_LIQUIDITY );
             newAccount << global.accounts.( incomingPlayer );
+
+    // [MonitorX] Registrazione Player
+
+            with (toPrint3) {
+                .type = "playerRegistration";
+                .screen = 1;
+                .playerName = incomingPlayer
+            };
+            with (toPrint4) {
+                .screen = 2;
+                .type = "playerRegistration";
+                .playerName = incomingPlayer
+            };
+
+            printOut@MonitorX(toPrint3);
+            printOut@MonitorX(toPrint4);
 
 // creo un semaforo per il player; sarà utile per sincronizzare l'accesso alle operazioni di buy | sell
             playerName = incomingPlayer;
@@ -296,7 +340,7 @@ newStock.totalPrice
 // un player tenta di acquistare uno stock inesistente (rilanciata dallo stock)
                     StockUnknownException =>    releaseStockSemaphore; releasePlayerSemaphore;
                                                 throw( StockUnknownException, buyStockScope.StockUnknownException ),
-// lo stock ha terminato la sua disponibilità                
+// lo stock ha terminato la sua disponibilità
                     StockAvailabilityException =>   releaseStockSemaphore; releasePlayerSemaphore;
                                                     throw( StockAvailabilityException, buyStockScope.StockAvailabilityException ),
 // liquidità del player terminata
@@ -374,6 +418,49 @@ newStock.totalPrice
                 .price = 0 - currentPrice
             };
 
+    // [MonitorX] buyStock
+            //Sottostruttura per gli stock posseduti dal Player
+            indx=0;
+            foreach(stck : currentPlayer.ownedStock) {
+                stockNms[indx] = stck;
+                quantities[indx] = currentPlayer.ownedStock.(stck).quantity;
+                indx++
+            };
+            with (toPrint5) {
+                .type = "buyStock";
+                .screen = 1;
+                .playerName = playerName;
+                .stockName = stockName;
+                .ownedStockNames << stockNms;
+                .ownedStockQuantities << quantities
+            };
+            //Sottostruttura per i i prezzi totali degli Stock
+            indx=0;
+            foreach(stck : global.registeredStocks) {
+                stockNms[indx] = stck;
+                prices[indx] = global.registeredStocks.(stck).totalPrice;
+                indx++
+            };
+            with (toPrint6) {
+                .screen = 2;
+                .type = "buyStock";
+                .playerName = playerName;
+                .stockName = stockName;
+                .registeredStocks << stockNms;
+                .totalPrices << prices
+            };
+            infoStockAvailability@MarketToStockCommunication( stockName )( responseAvailability );
+            with (toPrint7) {
+                .screen = 3;
+                .type = "buyStock";
+                .stockName = stockName;
+                .availability = responseAvailability
+            };
+
+            printOut@MonitorX(toPrint5);
+            printOut@MonitorX(toPrint6);
+            printOut@MonitorX(toPrint7);
+
 // TO REMOVE, for debug purpose only =)
 //            println@Console( "Aspetto 3 secondi prima di rilasciare il semaforo su " + transactionRequest.stock )();
 //            sleep@Time( 3000 )();
@@ -417,7 +504,7 @@ newStock.totalPrice
         scope( sellStockScope ) {
 
 // qualora siano invocate le seguenti eccezioni, prima di rilanciarle è indispensabile rilasciare il semaforo
-// (saranno poi catturate nell'init e rilanciate ai rispettivi invocanti)   
+// (saranno poi catturate nell'init e rilanciate ai rispettivi invocanti)
             install(
 
 // un player tenta di acquistare uno stock inesistente (rilanciata dallo stock)
@@ -442,7 +529,7 @@ newStock.totalPrice
                 println@Console( ">>> SELLSTOCK acquisito semaforo per lo stock " + stockName )();
 
 // il player dispone dello stock che vuol vendere?
-            if ( ! is_defined( currentPlayer.ownedStock.( stockName) ) || 
+            if ( ! is_defined( currentPlayer.ownedStock.( stockName) ) ||
                 ( currentPlayer.ownedStock.( stockName ).quantity <= 0 ) ) {
                 with( exceptionMessage ) { .stockName = stockName };
                 throw( NotOwnedStockException, exceptionMessage )
@@ -450,7 +537,7 @@ newStock.totalPrice
 
 // richiedo la quantità disponibile per lo stock
             infoStockAvailability@MarketToStockCommunication( stockName )( availability );
-// qualora la disponbilità sia esaurita o pari a 1, il prezzo unitario corrisponderà al prezzo totale            
+// qualora la disponbilità sia esaurita o pari a 1, il prezzo unitario corrisponderà al prezzo totale
             if ( availability <= 1 ) {
                 currentPrice = currentStock.totalPrice
             } else {
@@ -459,7 +546,7 @@ newStock.totalPrice
                 toRound = currentPrice; round; currentPrice = roundedValue
             };
 
-// può generare StockUnknownException 
+// può generare StockUnknownException
 // risponde con un boolean TRUE qualora l'operazione sia andata a buon fine;
 // (1) l’unità di Stock disponibile viene incrementata di 1
             sellStock@MarketToStockCommunication( stockName )( response );
@@ -491,6 +578,49 @@ newStock.totalPrice
                 .price = currentPrice
             };
 
+    // [MonitorX] sellStock
+            //Sottostruttura per gli stock posseduti dal Player
+            indx=0;
+            foreach(stck : currentPlayer.ownedStock) {
+                stockNms[indx] = stck;
+                quantities[indx] = currentPlayer.ownedStock.(stck).quantity;
+                indx++
+            };
+            with (toPrint8) {
+                .type = "sellStock";
+                .screen = 1;
+                .playerName = playerName;
+                .stockName = stockName;
+                .ownedStockNames << stockNms;
+                .ownedStockQuantities << quantities
+            };
+            //Sottostruttura per i i prezzi totali degli Stock
+            indx=0;
+            foreach(stck : global.registeredStocks) {
+                stockNms[indx] = stck;
+                prices[indx] = global.registeredStocks.(stck).totalPrice;
+                indx++
+            };
+            with (toPrint9) {
+                .screen = 2;
+                .type = "sellStock";
+                .playerName = playerName;
+                .stockName = stockName;
+                .registeredStocks << stockNms;
+                .totalPrices << prices
+            };
+            infoStockAvailability@MarketToStockCommunication( stockName )( responseAvailability );
+            with (toPrint10) {
+                .screen = 3;
+                .type = "sellStock";
+                .stockName = stockName;
+                .availability = responseAvailability
+            };
+
+            printOut@MonitorX(toPrint8);
+            printOut@MonitorX(toPrint9);
+            printOut@MonitorX(toPrint10);
+
 // TO REMOVE, for debug purpose only =)
 //            println@Console( "Aspetto 3 secondi prima di rilasciare il semaforo su " + transactionRequest.stock )();
 //            sleep@Time( 3000 )();
@@ -505,7 +635,7 @@ newStock.totalPrice
 // operazione invocata dal Player; restituisce la lista degli stock registrati, attualmente presenti
 // potrebbero verificarsi letture e scritture simultanee, nel momento in cui si registri un nuovo
 // stock e contemporaneamente un player ne richieda la lista, ma il controllo su registrationCompleted
-// previene l'insorgere di tale casistica    
+// previene l'insorgere di tale casistica
     [ infoStockList( info )( responseInfo ) {
         i = 0;
         foreach ( stockName : global.registeredStocks ) {
@@ -593,7 +723,7 @@ newStock.totalPrice
 
         if ( ! is_defined( me.registrationCompleted ))
             throw( StockUnknownException, { .stockName = stockName });
-        
+
         acquire@SemaphoreUtils( me.semaphore )();
 
         oldPrice = me.totalPrice;
@@ -603,11 +733,39 @@ newStock.totalPrice
         me.totalPrice += priceIncrement;
         toRound = me.totalPrice; round; me.totalPrice = roundedValue;
 
+        // [MonitorX] destroyStock
+        //Sottostruttura per i i prezzi totali degli Stock
+        indx=0;
+        foreach(stck : global.registeredStocks) {
+            stockNms[indx] = stck;
+            prices[indx] = global.registeredStocks.(stck).totalPrice;
+            indx++
+        };
+        with (toPrint11) {
+            .screen = 2;
+            .type = "destroyStock";
+            .stockName = stockVariation.name;
+            .registeredStocks << stockNms;
+            .totalPrices << prices;
+            .variation = stockVariation.variation
+        };
+        infoStockAvailability@MarketToStockCommunication( stockVariation.name )( responseAvailability );
+        with (toPrint12) {
+            .screen = 3;
+            .type = "destroyStock";
+            .stockName = stockVariation.name;
+            .variation = stockVariation.variation;
+            .availability = responseAvailability
+        };
+
+        printOut@MonitorX(toPrint11);
+        printOut@MonitorX(toPrint12);
+
         if ( DEBUG ) println@Console( "destroyStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.totalPrice +
                                     "; variation " + stockVariation.variation + "; incremento del prezzo di " + priceIncrement +
                                     " (" + me.totalPrice + " * " + stockVariation.variation + "), " +
                                     "da " + oldPrice + " a " + me.totalPrice + ")")();
-        
+
         release@SemaphoreUtils( me.semaphore )()
 
     }
@@ -647,6 +805,34 @@ newStock.totalPrice
                 toRound = me.totalPrice; round; me.totalPrice = roundedValue
             }
         };
+
+        // [MonitorX] addStock
+        //Sottostruttura per i i prezzi totali degli Stock
+        indx=0;
+        foreach(stck : global.registeredStocks) {
+            stockNms[indx] = stck;
+            prices[indx] = global.registeredStocks.(stck).totalPrice;
+            indx++
+        };
+        with (toPrint13) {
+            .screen = 2;
+            .type = "addStock";
+            .stockName = stockVariation.name;
+            .registeredStocks << stockNms;
+            .totalPrices << prices;
+            .variation = stockVariation.variation
+        };
+        infoStockAvailability@MarketToStockCommunication( stockVariation.name )( responseAvailability );
+        with (toPrint14) {
+            .screen = 3;
+            .type = "addStock";
+            .stockName = stockVariation.name;
+            .variation = stockVariation.variation;
+            .availability = responseAvailability
+        };
+
+        printOut@MonitorX(toPrint13);
+        printOut@MonitorX(toPrint14);
 
         if ( DEBUG ) println@Console( "addStock@Market, " + stockVariation.name + "; prezzo attuale: " + me.totalPrice +
                                     "; variation " + stockVariation.variation + "; decremento del prezzo di " + priceDecrement +
