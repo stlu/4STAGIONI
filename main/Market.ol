@@ -227,9 +227,6 @@ newStock.totalPrice
             stockName = newStock.name;
             createStockSemaphore;
 
-// fintantochè questa variabile non è impostata non potrà esser svolta alcuna operazione relativa allo stock (is_defined)
-            me.registrationCompleted = true;
-
             response = true
 
         } else {
@@ -240,7 +237,8 @@ newStock.totalPrice
              */
             throw( StockDuplicatedException, { .stockName = newStock.name } )
         }
-    } ] { nullProcess }
+// fintantochè questa variabile non è impostata non potrà esser svolta alcuna operazione relativa allo stock (is_defined)
+    } ] { me.registrationCompleted = true }
 
 
 
@@ -282,10 +280,7 @@ newStock.totalPrice
 
 // creo un semaforo per il player; sarà utile per sincronizzare l'accesso alle operazioni di buy | sell
             playerName = incomingPlayer;
-            createPlayerSemaphore;
-
-// fintantochè questa variabile non è impostata, il player non potrà effettuare alcuna operazione (is_defined)
-            global.accounts.( incomingPlayer ).registrationCompleted = true
+            createPlayerSemaphore
 
 // Caso in cui il player sia già presente, non dovrebbe
 // verificarsi; tuttavia intercetto e rilancio un'eventuale eccezione
@@ -294,6 +289,8 @@ newStock.totalPrice
         }
 
     } ] {
+// fintantochè questa variabile non è impostata, il player non potrà effettuare alcuna operazione (is_defined)
+        global.accounts.( incomingPlayer ).registrationCompleted = true;
         if ( DEBUG ) println@Console( "\nregisterPlayer@Market, incomingPlayer: " + incomingPlayer )()
     }
 
