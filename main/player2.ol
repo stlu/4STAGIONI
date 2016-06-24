@@ -30,17 +30,16 @@ execution { single }
 //dell'esito delle sue operazioni
 
 define infoStockList {
-    infoStockList@PlayerToMarketCommunication( "info" )( responseInfo );
-    if (DEBUG) print@Console( "info ricevute sugli stock: " )();
-    for ( k = 0, k < #responseInfo.name, k++ ) {
-        if (DEBUG) print@Console( responseInfo.name[k] )();
-        stockName=responseInfo.name[k];
-        if ( ! is_defined( StockAllowed.(stockName).price1 )) {
-          infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
-          StockAllowed.(stockName).price1=responsePrice;
-          if (DEBUG) println@Console( StockAllowed.(stockName).price1 )()
-        }
-    }
+    infoStockList@PlayerToMarketCommunication( "info" )( responseInfo )
+
+    //for ( k = 0, k < #responseInfo.name, k++ ) {
+    //    stockName=responseInfo.name[k];
+        //if ( ! is_defined( StockAllowed.(stockName).price1 )) {
+        //  infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
+        //  StockAllowed.(stockName).price1=responsePrice;
+    //      if (DEBUG) println@Console( " info ricevute sugli stock # " + #responseInfo + " name " +stockName + " prezzo  " + StockAllowed.(stockName).price1 )()
+        //}
+    //}
 }
 
 // operazioni player1
@@ -153,26 +152,25 @@ main {
     };
 
     while ( server_conn ) {
-
-        infoStockList;
-        randGenStock;
-        infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
-        if (DEBUG) print@Console("\n prezzo di: " + stockName + " = "  + responsePrice )();
-        infoStockAvailability@PlayerToMarketCommunication( stockName )( responseAvailability );
-        if (DEBUG) println@Console(" disponibilità di: " + stockName + " = " + responseAvailability )();
-
-        println@Console("qtà utente1 "+ status1.ownedStock.(stockName).quantity + " qtà utente2 " + status2.ownedStock.(stockName).quantity)();
-        println@Console("liq.utente1 "+ status1.liquidity + " liq.utente2 " + status2.liquidity)();
-
         {
+            infoStockList;
+            randGenStock;
+            infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
+            if (DEBUG) println@Console(" 1  prezzo di: " + stockName + " = "  + responsePrice )();
+
             // politica 1 -
+            println@Console("qtà utente1 "+ status1.ownedStock.(stockName).quantity + " liq.utente1 "+ status1.liquidity )();
+
             // Se il prezzo corrente è salito meno del 10% dall'ultima operazione allora compro
             // se il prezzo corrente è salito più del 30% o è sceso più del 5% dall'ultima operazione allora vendo
-            if (status1.liquidity > responsePrice && StockAllowed.(stockName).price1  <=  double(responsePrice * 1.10) &&
-                responseAvailability > 0 ) {
-                nextBuy1.stock = stockName; buy1;
-                StockAllowed.(stockName).price1 = responsePrice;
-                if (DEBUG) println@Console(" COMPRATO da utente1  a " + responsePrice)()
+            if (status1.liquidity > responsePrice && StockAllowed.(stockName).price1  <=  double(responsePrice * 1.10) ) {
+                infoStockAvailability@PlayerToMarketCommunication( stockName )( responseAvailability );
+                if (DEBUG) println@Console(" 1 disponibilità di: " + stockName + " = " + responseAvailability )();
+                if (responseAvailability > 0 ) {
+                    nextBuy1.stock = stockName; buy1;
+                    StockAllowed.(stockName).price1 = responsePrice;
+                    if (DEBUG) println@Console(" COMPRATO da utente1  a " + responsePrice)()
+                }
             } else if(status1.ownedStock.(stockName).quantity > 0 &&
                  (StockAllowed.(stockName).price1 <= double(responsePrice * 1.05) || (StockAllowed.(stockName).price1 > double(responsePrice * 1.30)) ) ){
                 nextSell1.stock = stockName; sell1;
@@ -182,15 +180,24 @@ main {
         }
         |
         {
+            infoStockList;
+            randGenStock;
+            infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
+            if (DEBUG) println@Console(" 2 prezzo di: " + stockName + " = "  + responsePrice )();
 
             // politica 2 -
+            println@Console(" qtà utente2 " + status2.ownedStock.(stockName).quantity + " liq.utente2 " + status2.liquidity)();
+
             // Se il prezzo corrente è salito meno del 5% dall'ultima operazione allora compro
             // se il prezzo corrente è salito più del 40% o è sceso più del 2% dall'ultima operazione allora vendo
-            if (status2.liquidity > responsePrice && StockAllowed.(stockName).price1  <=  double(responsePrice * 1.05) &&
-                responseAvailability > 0 ) {
-                nextBuy2.stock = stockName; buy2;
-                StockAllowed.(stockName).price1 = responsePrice;
-                if (DEBUG) println@Console(" COMPRATO da utente2 " + responsePrice)()
+            if (status2.liquidity > responsePrice && StockAllowed.(stockName).price1  <=  double(responsePrice * 1.05) ) {
+                infoStockAvailability@PlayerToMarketCommunication( stockName )( responseAvailability );
+                if (DEBUG) println@Console(" 2 disponibilità di: " + stockName + " = " + responseAvailability )();
+                if (responseAvailability > 0 ) {
+                    nextBuy2.stock = stockName; buy2;
+                    StockAllowed.(stockName).price1 = responsePrice;
+                    if (DEBUG) println@Console(" COMPRATO da utente2 " + responsePrice)()
+                }
             } else if(status2.ownedStock.(stockName).quantity > 0 &&
                  (StockAllowed.(stockName).price1 <= double(responsePrice * 1.05) || (StockAllowed.(stockName).price1 > double(responsePrice * 1.30)) ) ){
                 nextSell2.stock = stockName; sell2;
