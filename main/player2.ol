@@ -31,15 +31,6 @@ execution { single }
 
 define infoStockList {
     infoStockList@PlayerToMarketCommunication( "info" )( responseInfo )
-
-    //for ( k = 0, k < #responseInfo.name, k++ ) {
-    //    stockName=responseInfo.name[k];
-        //if ( ! is_defined( StockAllowed.(stockName).price1 )) {
-        //  infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
-        //  StockAllowed.(stockName).price1=responsePrice;
-    //      if (DEBUG) println@Console( " info ricevute sugli stock # " + #responseInfo + " name " +stockName + " prezzo  " + StockAllowed.(stockName).price1 )()
-        //}
-    //}
 }
 
 // operazioni player1
@@ -79,7 +70,7 @@ define randGenStock {
     n=100/nStock;
     rand=rand*100;
 // genera un valore random, estremi inclusi
-    if (rand<n){
+    if (rand<=n){
       stockName=responseInfo.name[0]
     }else if (rand<2*n){
       stockName=responseInfo.name[1]
