@@ -4,6 +4,7 @@ include "../interfaces/playerInterface.iol"
 
 include "console.iol"
 include "time.iol"
+include "runtime.iol"
 include "string_utils.iol"
 include "math.iol"
 
@@ -47,30 +48,30 @@ define infoStockList {
 define buy1 {
     buyStock@PlayerToMarketCommunication( nextBuy1 )( receipt );
     if(receipt.esito == true) {
-        status1.ownedStock.(receipt.stock).quantity += receipt.kind;
-        status1.liquidity += receipt.price
+        global.status1.ownedStock.(receipt.stock).quantity += receipt.kind;
+        global.status1.liquidity += receipt.price
     }
 }
 define sell1 {
     sellStock@PlayerToMarketCommunication( nextSell1 )( receipt );
     if(receipt.esito == true) {
-        status1.ownedStock.(receipt.stock).quantity += receipt.kind;
-        status1.liquidity += receipt.price
+        global.status1.ownedStock.(receipt.stock).quantity += receipt.kind;
+        global.status1.liquidity += receipt.price
     }
 }
 // operazioni player2
 define buy2 {
     buyStock@PlayerToMarketCommunication( nextBuy2 )( receipt );
     if(receipt.esito == true) {
-        status2.ownedStock.(receipt.stock).quantity += receipt.kind;
-        status2.liquidity += receipt.price
+        global.status2.ownedStock.(receipt.stock).quantity += receipt.kind;
+        global.status2.liquidity += receipt.price
     }
 }
 define sell2 {
     sellStock@PlayerToMarketCommunication( nextSell2 )( receipt );
     if(receipt.esito == true) {
-        status2.ownedStock.(receipt.stock).quantity += receipt.kind;
-        status2.liquidity += receipt.price
+        global.status2.ownedStock.(receipt.stock).quantity += receipt.kind;
+        global.status2.liquidity += receipt.price
     }
 }
 define randGenStock {
@@ -86,39 +87,38 @@ define randGenStock {
       stockName=responseInfo.name[1]
     }else{
       stockName=responseInfo.name[2]
-    };
-    stockName = "Oro"
+    }
 }
 
 init {
     // Imposta la location della output port Self per comunicare con le operazioni esposte in LocalInterface
     getLocalLocation@Runtime()( Self.location );
-    registration2player@Self();    // registra player
+    registration2player@Self();    // registra due player
 
     install (
         // il player name è già in uso
             PlayerDuplicatedException =>        valueToPrettyString@StringUtils(  main.PlayerDuplicatedException )( result );
-                                                runplayer@Self();
+                                                run2player@Self();
                                                 println@Console( "PlayerDuplicatedException\n" + result )(),
         // il player sta tentando di effettuare una transazione, ma non si è correttamente registrato presso il market
             PlayerUnknownException =>           valueToPrettyString@StringUtils(  main.PlayerUnknownException )( result );
-                                                runplayer@Self();
+                                                run2player@Self();
                                                 println@Console( "PlayerUnknownException\n" + result )(),
         // lo stock ha terminato la sua disponibilità
             StockAvailabilityException =>       valueToPrettyString@StringUtils(  main.StockAvailabilityException )( result );
-                                                runplayer@Self();
+                                                run2player@Self();
                                                 println@Console( "StockAvailabilityException\n" + result )(),
         // il player tenta di acquistare uno stock inesistente
             StockUnknownException =>            valueToPrettyString@StringUtils(  main.StockUnknownException )( result );
-                                                runplayer@Self();
+                                                run2player@Self();
                                                 println@Console( "StockUnknownException\n" + result )(),
         // liquidità del player terminata
             InsufficientLiquidityException =>   valueToPrettyString@StringUtils(  main.InsufficientLiquidityException )( result );
-                                                runplayer@Self();
+                                                run2player@Self();
                                                 println@Console( "InsufficientLiquidityException\n" + result )(),
         // il player non dispone dello stock che sta tentando di vendere
             NotOwnedStockException =>           valueToPrettyString@StringUtils(  main.NotOwnedStockException )( result );
-                                                runplayer@Self();
+                                                run2player@Self();
                                                 println@Console( "NotOwnedStockException\n" + result )()
     )
 }
@@ -154,11 +154,11 @@ main {
        * denaro disponibile. Il player se la salva in 'status'.
        */
         registerPlayer@PlayerToMarketCommunication(Player_Name1)(newStatus1);
-        status1 << newStatus1;
+        global.status1 << newStatus1;
         registerPlayer@PlayerToMarketCommunication(Player_Name2)(newStatus2);
-        status2 << newStatus2;
+        global.status2 << newStatus2;
 
-        // start player
+        // start dei due player
         run2player@Self()
     }
 
@@ -198,22 +198,22 @@ main {
                 if (DEBUG) println@Console(" 1  prezzo di: " + stockName + " = "  + responsePrice )();
 
                 // politica 1 -
-                println@Console("qtà utente1 "+ status1.ownedStock.(stockName).quantity + " liq.utente1 "+ status1.liquidity )();
+                println@Console("qtà utente1 "+ global.status1.ownedStock.(stockName).quantity + " liq.utente1 "+ global.status1.liquidity )();
 
                 // Se il prezzo corrente è salito meno del 10% dall'ultima operazione allora compro
                 // se il prezzo corrente è salito più del 30% o è sceso più del 5% dall'ultima operazione allora vendo
-                if (status1.liquidity > responsePrice && StockAllowed.(stockName).price1  <=  double(responsePrice * 1.10) ) {
-                    CommMessage responseAvailability = infoStockAvailability@PlayerToMarketCommunication( stockName )( responseAvailability );
+                if (global.status1.liquidity > responsePrice && StockAllowed.(stockName).price1  <=  double(responsePrice * 1.10) ) {
+                    infoStockAvailability@PlayerToMarketCommunication( stockName )( responseAvailability );
                     if (DEBUG) println@Console(responseAvailability = " 1 disponibilità di: " + stockName + " = " + responseAvailability )();
                     if (responseAvailability > 0 ) {
                         nextBuy1.stock = stockName; buy1;
                         StockAllowed.(stockName).price1 = responsePrice;
                         if (DEBUG) println@Console(" COMPRATO da utente1  a " + responsePrice)()
                     }
-                } else if(status1.ownedStock.(stockName).quantity > 0 &&
+                } else if(global.status1.ownedStock.(stockName).quantity > 0 &&
                      (StockAllowed.(stockName).price1 <= double(responsePrice * 1.05) || (StockAllowed.(stockName).price1 > double(responsePrice * 1.30)) ) ){
                     nextSell1.stock = stockName; sell1;
-                    if (DEBUG) println@Console(" VENDUTO da utente1 "+ status1.liquidity )();
+                    if (DEBUG) println@Console(" VENDUTO da utente1 "+ global.status1.liquidity )();
                     StockAllowed.(stockName).price1 = responsePrice
                 }
             }
@@ -229,7 +229,7 @@ main {
 
                 // Se il prezzo corrente è salito meno del 5% dall'ultima operazione allora compro
                 // se il prezzo corrente è salito più del 40% o è sceso più del 2% dall'ultima operazione allora vendo
-                if (status2.liquidity > responsePrice && StockAllowed.(stockName).price1  <=  double(responsePrice * 1.05) ) {
+                if (global.status2.liquidity > responsePrice && StockAllowed.(stockName).price1  <=  double(responsePrice * 1.05) ) {
                     infoStockAvailability@PlayerToMarketCommunication( stockName )( responseAvailability );
                     if (DEBUG) println@Console(" 2 disponibilità di: " + stockName + " = " + responseAvailability )();
                     if (responseAvailability > 0 ) {
@@ -237,14 +237,14 @@ main {
                         StockAllowed.(stockName).price1 = responsePrice;
                         if (DEBUG) println@Console(" COMPRATO da utente2 " + responsePrice)()
                     }
-                } else if(status2.ownedStock.(stockName).quantity > 0 &&
+                } else if(global.status2.ownedStock.(stockName).quantity > 0 &&
                      (StockAllowed.(stockName).price1 <= double(responsePrice * 1.02) || (StockAllowed.(stockName).price1 > double(responsePrice * 1.40)) ) ){
                     nextSell2.stock = stockName; sell2;
-                    if (DEBUG) println@Console(" VENDUTO da utente2 "+ status2.liquidity )();
+                    if (DEBUG) println@Console(" VENDUTO da utente2 "+ global.status2.liquidity )();
                     StockAllowed.(stockName).price1 = responsePrice
                 }
             }
-
+            |
             // BOOM BOOM BOOM every 3 seconds
             sleep@Time( Frequence )();
 
