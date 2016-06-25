@@ -44,23 +44,25 @@ outputPort Self { Interfaces: LocalInterface }
 
 define infoStockList {
     infoStockList@PlayerToMarketCommunication( "info" )( responseInfo );
-    println@Console( "informazioni ricevute sugli stock" )();
-    for ( k = 0, k < #responseInfo.name, k++ ) {
-        println@Console( responseInfo.name[k] )()
+    if (DEBUG) {
+        println@Console( "informazioni ricevute sugli stock :" )();
+        for ( k = 0, k < #responseInfo.name, k++ ) {
+            print@Console( responseInfo.name[k] )()
+        }
     }
 }
 define buy {
     buyStock@PlayerToMarketCommunication( nextBuy )( receipt );
     if(receipt.esito == true) {
-        status.ownedStock.(receipt.stock).quantity += receipt.kind;
-        status.liquidity += receipt.price
+        global.status.ownedStock.(receipt.stock).quantity += receipt.kind;
+        global.status.liquidity += receipt.price
     }
 }
 define sell {
     sellStock@PlayerToMarketCommunication( nextSell )( receipt );
     if(receipt.esito == true) {
-        status.ownedStock.(receipt.stock).quantity += receipt.kind;
-        status.liquidity += receipt.price
+        global.status.ownedStock.(receipt.stock).quantity += receipt.kind;
+        global.status.liquidity += receipt.price
     }
 }
 
@@ -84,30 +86,32 @@ init {
     registrationplayer@Self();    // registra player
 
     install (
-        // il player name è già in uso
+        //  market è down errore irreversibile,interrompo l'esecuzione del programma
+            IOException =>                      println@Console( MARKET_DOWN_EXCEPTION )(); halt@Runtime()(),
+        // il player name è già in uso interrompe esecuzione
             PlayerDuplicatedException =>        valueToPrettyString@StringUtils(  main.PlayerDuplicatedException )( result );
-                                                runplayer@Self();
-                                                println@Console( "PlayerDuplicatedException\n" + result )(),
+                                                println@Console( "PlayerDuplicatedException\n" + result )(); halt@Runtime()(),
+
         // il player sta tentando di effettuare una transazione, ma non si è correttamente registrato presso il market
             PlayerUnknownException =>           valueToPrettyString@StringUtils(  main.PlayerUnknownException )( result );
-                                                runplayer@Self();
-                                                println@Console( "PlayerUnknownException\n" + result )(),
+                                                println@Console( "PlayerUnknownException\n" + result )();
+                                                runplayer@Self(),
         // lo stock ha terminato la sua disponibilità
             StockAvailabilityException =>       valueToPrettyString@StringUtils(  main.StockAvailabilityException )( result );
-                                                runplayer@Self();
-                                                println@Console( "StockAvailabilityException\n" + result )(),
+                                                println@Console( "StockAvailabilityException\n" + result )();
+                                                runplayer@Self(),
         // il player tenta di acquistare uno stock inesistente
             StockUnknownException =>            valueToPrettyString@StringUtils(  main.StockUnknownException )( result );
-                                                runplayer@Self();
-                                                println@Console( "StockUnknownException\n" + result )(),
+                                                println@Console( "StockUnknownException\n" + result )();
+                                                runplayer@Self(),
         // liquidità del player terminata
             InsufficientLiquidityException =>   valueToPrettyString@StringUtils(  main.InsufficientLiquidityException )( result );
-                                                runplayer@Self();
-                                                println@Console( "InsufficientLiquidityException\n" + result )(),
+                                                println@Console( "InsufficientLiquidityException\n" + result )();
+                                                runplayer@Self(),
         // il player non dispone dello stock che sta tentando di vendere
             NotOwnedStockException =>           valueToPrettyString@StringUtils(  main.NotOwnedStockException )( result );
-                                                runplayer@Self();
-                                                println@Console( "NotOwnedStockException\n" + result )()
+                                                println@Console( "NotOwnedStockException\n" + result )();
+                                                runplayer@Self()
     )
 }
 
@@ -122,11 +126,9 @@ main {
     [ registrationplayer() ] {
 
         install(
-            // se il player tenta la registrazione ed il market è down, riesegue ciclicamente
-            // l'operazione di registrationplayer con un delay di 5 secondi
-            IOException => println@Console( MARKET_DOWN_EXCEPTION )();
-                        sleep@Time( 5000 )();
-                        registrationplayer@Self(),
+            // se il player tenta la registrazione ed il market è down errore irreversibile,
+            // interrompo l'esecuzione del programma
+            IOException => println@Console( MARKET_DOWN_EXCEPTION )(); halt@Runtime()(),
 
             // se il player tenta la registrazione ed il market è chiuso, riesegue ciclicamente
             // l'operazione di registrationplayer con un delay di 5 secondi
@@ -144,7 +146,7 @@ main {
        * denaro disponibile. Il player se la salva in 'status'.
        */
         registerPlayer@PlayerToMarketCommunication(Player_Name)(newStatus);
-        status << newStatus;
+        global.status << newStatus;
 
         // start player
         runplayer@Self()
@@ -181,14 +183,14 @@ main {
             |
             { nextSell.stock = "Oro"; sell }
             |
-        /*    { nextBuy.stock = "Grano"; buy }
+            { nextBuy.stock = "Grano"; buy }
             |
             { nextSell.stock = "Grano"; sell }
             |
             { nextBuy.stock = "Petrolio"; buy }
             |
             { nextSell.stock = "Petrolio"; sell }
-            |*/
+            |
 
             infoStockList;
 
