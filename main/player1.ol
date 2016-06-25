@@ -19,7 +19,7 @@ outputPort PlayerToMarketCommunication {
      *  jolie -C Player_Name=\"Johnny\" Player.ol
  */
 constants {
-    Player_Name = "Default Player"
+    Player_Name = "Random Player"
 }
 
 execution { single }
@@ -30,11 +30,11 @@ init {
 // (una dichiarazione cumulativa per tutti i throw invocati in ciascuna operazione);
 // qualora sia invece necessario intraprendere comportamenti specifici è bene definire l'install all'interno dello scope
     scope( commonFaultScope ) {
-        install(    
+        install(
                 IOException => println@Console( MARKET_DOWN_EXCEPTION )(),
-                PlayerDuplicatedException => println@Console( PLAYER_DUPLICATED_EXCEPTION + 
+                PlayerDuplicatedException => println@Console( PLAYER_DUPLICATED_EXCEPTION +
                                               " (" + commonFaultScope.PlayerDuplicatedException.playerName + ")")(),
-                StockUnknownException => println@Console( PLAYER_DUPLICATED_EXCEPTION + 
+                StockUnknownException => println@Console( PLAYER_DUPLICATED_EXCEPTION +
                                               " (" + commonFaultScope.StockUnknownException.stockName + ")")()
               )
     }
@@ -67,30 +67,20 @@ define sell {
 define randGenStock {
 // Returns a random number d such that 0.0 <= d < 1.0.
     random@Math()( rand );
+    rand=rand*100;
 // genera un valore random, estremi inclusi
-    if (rand<0.33){
-      stockName="Oro"
-    }else if(rand<0.66){
-      stockName="Petrolio"
-    }else{
-      stockName="Grano"
-    }
+    gen=int(rand % (#responseInfo.name));
+    stockName=responseInfo.name[gen]
 }
 
 define randGenAction {
 // Returns a random number d such that 0.0 <= d < 1.0.
     random@Math()( rand );
 // genera un valore random, estremi inclusi
-    if (rand<0.2){
+    if (rand<0.5){
         action=1
-    }else if (rand<0.4){
-        action=2
-    }else if(rand<0.6){
-        action=3
-    }else if(rand<0.8){
-        action=4
-    }else if(rand<1){
-        action=5
+    }else {
+      action=2
     }
 }
 
@@ -123,24 +113,21 @@ main {
     };
 
     while ( server_conn ) {
+        infoStockList;
         randGenStock;
-        randGenAction;
-        if (action==1){
-        { nextBuy.stock = stockName; buy }
-        }else if(action==2){
-        { nextSell.stock = stockName; sell }
-        }else if(action==3){
-        infoStockList
-        }else if(action==4){
         infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
-        println@Console("prezzo del: " + stockName + " = "  + responsePrice )()
-        }else {
         infoStockAvailability@PlayerToMarketCommunication( stockName )( responseAvailability );
-        println@Console("disponibilità di: " + stockName + " = " + responseAvailability )()
+        randGenAction;
+        if (action==1 && status.liquidity>responsePrice){
+          nextBuy.stock = stockName; buy;
+          println@Console("comprato "+ stockName)()
+        }else if(action==2 && status.ownedStock.(stockName).quantity>0){
+          nextSell.stock = stockName; sell;
+          println@Console("venduto"+ stockName)()
         };
 
 // BOOM BOOM BOOM every 3 seconds
-        sleep@Time( 3000 )();
+          sleep@Time( 1000 )();
 
         /* Verifica lo stato del Market */
         checkMarketStatus@PlayerToMarketCommunication()( server_conn )
