@@ -4,6 +4,7 @@ include "../interfaces/playerInterface.iol"
 
 include "console.iol"
 include "time.iol"
+include "runtime.iol"
 include "string_utils.iol"
 include "math.iol"
 
@@ -13,32 +14,67 @@ outputPort PlayerToMarketCommunication {
     Interfaces: PlayerToMarketCommunicationInterface, MarketCommunicationInterface
 }
 
+
+// definizioni di interfaccia e outputPort per un'invocazione "riflessiva"
+interface LocalInterface {
+    OneWay: registrationplayer( void ) // registrazione del player presso il market
+    OneWay: runplayer( void )
+}
+inputPort LocalInputPort {
+    Location: "local"
+    Interfaces: LocalInterface
+}
+outputPort Self { Interfaces: LocalInterface }
 /*
  * Il valore della costante viene sovrascritto lanciando Player.ol con:
  *
      *  jolie -C Player_Name=\"Johnny\" Player.ol
  */
 constants {
-    Player_Name = "Random Player"
+    Player_Name = "Random Player",
+    Frequence = 3000
 }
 
 execution { single }
 
 // La sezione init deve essere prima di ogni define
 init {
-// così come suggerito da Stefania, dichiaramo tutte le eccezioni nell'init
-// (una dichiarazione cumulativa per tutti i throw invocati in ciascuna operazione);
-// qualora sia invece necessario intraprendere comportamenti specifici è bene definire l'install all'interno dello scope
-    scope( commonFaultScope ) {
-        install(
-                IOException => println@Console( MARKET_DOWN_EXCEPTION )(),
-                PlayerDuplicatedException => println@Console( PLAYER_DUPLICATED_EXCEPTION +
-                                              " (" + commonFaultScope.PlayerDuplicatedException.playerName + ")")(),
-                StockUnknownException => println@Console( PLAYER_DUPLICATED_EXCEPTION +
-                                              " (" + commonFaultScope.StockUnknownException.stockName + ")")()
-              )
-    }
+    // Imposta la location della output port Self per comunicare con le operazioni esposte in LocalInterface
+    getLocalLocation@Runtime()( Self.location );
+    registrationplayer@Self();    // registra player
+
+    install (
+        //  market è down errore irreversibile,interrompo l'esecuzione del programma
+            IOException =>                      println@Console( MARKET_DOWN_EXCEPTION )(); halt@Runtime()(),
+        // il player name è già in uso interrompe esecuzione
+            PlayerDuplicatedException =>        valueToPrettyString@StringUtils(  main.PlayerDuplicatedException )( result );
+                                                println@Console( "PlayerDuplicatedException\n" + result )(); halt@Runtime()(),
+
+        // il player sta tentando di effettuare una transazione, ma non si è correttamente registrato presso il market
+            PlayerUnknownException =>           valueToPrettyString@StringUtils(  main.PlayerUnknownException )( result );
+                                                println@Console( "PlayerUnknownException\n" + result )();
+                                                runplayer@Self(),
+        // lo stock ha terminato la sua disponibilità
+            StockAvailabilityException =>       valueToPrettyString@StringUtils(  main.StockAvailabilityException )( result );
+                                                println@Console( "StockAvailabilityException\n" + result )();
+                                                runplayer@Self(),
+        // il player tenta di acquistare uno stock inesistente
+            StockUnknownException =>            valueToPrettyString@StringUtils(  main.StockUnknownException )( result );
+                                                println@Console( "StockUnknownException\n" + result )();
+                                                runplayer@Self(),
+        // liquidità del player terminata
+            InsufficientLiquidityException =>   valueToPrettyString@StringUtils(  main.InsufficientLiquidityException )( result );
+                                                println@Console( "InsufficientLiquidityException\n" + result )();
+                                                runplayer@Self(),
+        // il player non dispone dello stock che sta tentando di vendere
+            NotOwnedStockException =>           valueToPrettyString@StringUtils(  main.NotOwnedStockException )( result );
+                                                println@Console( "NotOwnedStockException\n" + result )();
+                                                runplayer@Self()
+    )
 }
+
+execution { concurrent }
+/****/
 
 //Il Player aggiorna il suo status (liquidità e stock posseduti) in funzione
 //dell'esito delle sue operazioni
@@ -87,30 +123,53 @@ define randGenAction {
 
 main {
 
-/* Verifica lo stato del Market */
-   checkMarketStatus@PlayerToMarketCommunication()( server_conn );
+  // registrazione del player sul market; intercetta eccezioni e gestisce i tentativi di connessione
+  [ registrationplayer() ] {
 
-   /*
-   * La prima cosa che un Player fa appena viene al mondo è registrarsi presso il
-   * Market, il Market gli risponde con una struttura dati che riflette il suo
-   * account, e che contiene quindi nome, stock posseduti e relative quantità,
-   * denaro disponibile. Il player se la salva in 'status'.
-   */
-    registerPlayer@PlayerToMarketCommunication(Player_Name)(newStatus);
-    status << newStatus;
-    /*
-     * Il player mantiene queste due piccole strutture dati alle quali cambia
-     * di volta in volta il nome dello stock oggetto della transazione prima di
-     * inviare la richiesta.
+      install(
+          // se il player tenta la registrazione ed il market è down errore irreversibile,
+          // interrompo l'esecuzione del programma
+          IOException => println@Console( MARKET_DOWN_EXCEPTION )(); halt@Runtime()(),
+
+          // se il player tenta la registrazione ed il market è chiuso, riesegue ciclicamente
+          // l'operazione di registrationplayer con un delay di 5 secondi
+          MarketClosedException => println@Console( MARKET_CLOSED_EXCEPTION )();
+                                      sleep@Time( 5000 )(); registrationplayer@Self()
+      );
+
+      /* Verifica lo stato del Market */
+      checkMarketStatus@PlayerToMarketCommunication()( server_conn );
+
+     /*
+     * La prima cosa che un Player fa appena viene al mondo è registrarsi presso il
+     * Market, il Market gli risponde con una struttura dati che riflette il suo
+     * account, e che contiene quindi nome, stock posseduti e relative quantità,
+     * denaro disponibile. Il player se la salva in 'status'.
      */
-    with( nextBuy ) {
-        .player = Player_Name;
-        .stock = ""
-    };
-    with ( nextSell ) {
-        .player = Player_Name;
-        .stock = ""
-    };
+      registerPlayer@PlayerToMarketCommunication(Player_Name)(newStatus);
+      global.status << newStatus;
+
+      // start player
+      runplayer@Self()
+  }
+
+  // OneWay riflessivo; operazione esecuzione del player
+  [ runplayer() ] {
+
+      checkMarketStatus@PlayerToMarketCommunication()( server_conn );
+      /*
+       * Il player mantiene queste due piccole strutture dati alle quali cambia
+       * di volta in volta il nome dello stock oggetto della transazione prima di
+       * inviare la richiesta.
+       */
+      with( nextBuy ) {
+          .player = Player_Name;
+          .stock = ""
+      };
+      with ( nextSell ) {
+          .player = Player_Name;
+          .stock = ""
+      };
 
     while ( server_conn ) {
         infoStockList;
@@ -118,7 +177,7 @@ main {
         infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
         infoStockAvailability@PlayerToMarketCommunication( stockName )( responseAvailability );
         randGenAction;
-        if (action==1 && status.liquidity>responsePrice){
+        if (action==1){
           nextBuy.stock = stockName; buy;
           println@Console("comprato "+ stockName)()
         }else if(action==2 && status.ownedStock.(stockName).quantity>0){
@@ -127,9 +186,10 @@ main {
         };
 
 // BOOM BOOM BOOM every 3 seconds
-          sleep@Time( 1000 )();
+          sleep@Time( Frequence )();
 
         /* Verifica lo stato del Market */
         checkMarketStatus@PlayerToMarketCommunication()( server_conn )
     }
+  }
 }
