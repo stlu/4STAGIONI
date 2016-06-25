@@ -111,15 +111,10 @@ define releaseStockSemaphore {
 // creo un semaforo per lo stock (all'interno della struttura dati degli stock registrati);
 // sarà utile per sincronizzare l'accesso alle operazioni di: buy | sell | addStock | destroyStock
 define createStockSemaphore {
-    with( global.registeredStocks.( stockName )[ 0 ].semaphore ) {
-            .name = stockName;
-            .permits = 0
-        };
+    global.registeredStocks.( stockName )[ 0 ].semaphore.name = stockName;
 // effettuo una release: devo produrre almeno un token da acquisire
     releaseStockSemaphore
 }
-
-
 
 // shortcut per il release del semaforo associato al player
 define releasePlayerSemaphore {
@@ -133,10 +128,7 @@ define releasePlayerSemaphore {
 // pena il generarsi di eventuali interferenze sulla struttura ad esso associata
 // (si pensi, ad esempio, all'accesso concorrente sull'informazione di liquidità)
 define createPlayerSemaphore {
-    with( global.accounts.( playerName )[ 0 ].semaphore ) {
-            .name = playerName;
-            .permits = 0
-        };
+    global.accounts.( playerName )[ 0 ].semaphore.name = playerName;
 // effettuo una release: devo produrre almeno un token da acquisire
     releasePlayerSemaphore
 }
@@ -150,10 +142,7 @@ define releaseRegisterStockSemaphore {
 }
 
 define createRegisterStockSemaphore {
-    with( global.semaphores.registerStock ) {
-            .name = "registerStock";
-            .permits = 0
-        };
+    global.semaphores.registerStock.name = "registerStock";
     releaseRegisterStockSemaphore
 }
 
@@ -276,10 +265,7 @@ newStock.totalPrice
         }
 // fintantochè la seguente variabile non è impostata, il player non potrà effettuare alcuna operazione
 // si noti is_defined come istruzione di incipit delle altre operazioni
-    } ] {
-            me.registrationCompleted = true;
-            release@SemaphoreUtils( { .name = newStock.name } )( response )
-        }
+    } ] { me.registrationCompleted = true }
 
 
 
@@ -515,7 +501,6 @@ newStock.totalPrice
         }
 
     } ] { nullProcess }
-
 
 
 
