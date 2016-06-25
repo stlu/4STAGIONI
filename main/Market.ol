@@ -48,6 +48,8 @@ embedded {
     Java: "Out.MonitorX" in MonitorX
 }
 
+
+
 // le seguenti define snelliscono il codice all'interno di buyStock e sellStock ed offrono:
 // gestione del timing e algoritmo di pricing
 define timeCalc {
@@ -141,6 +143,33 @@ define createPlayerSemaphore {
 
 
 
+// il seguente semaforo regola l'accesso alla sezione critica all'interno dell'operazione registerStock
+define releaseRegisterStockSemaphore {
+    toRelease -> global.semaphores.registerStock;
+    release@SemaphoreUtils( toRelease )( response )
+}
+
+define createRegisterStockSemaphore {
+    with( global.semaphores.registerStock ) {
+            .name = "registerStock";
+            .permits = 0
+        };
+    releaseRegisterStockSemaphore
+}
+
+// il seguente semaforo regola l'accesso alla sezione critica all'interno dell'operazione registerPlayer
+define releaseRegisterPlayerSemaphore {
+    toRelease -> global.semaphores.registerPlayer;
+    release@SemaphoreUtils( toRelease )( response )
+}
+
+define createRegisterPlayerSemaphore {
+    global.semaphores.registerPlayer.name = "registerPlayer";
+    releaseRegisterPlayerSemaphore
+}
+
+
+
 init {
     global.status = true; // se true il Market è aperto
 
@@ -164,7 +193,11 @@ init {
                 InsufficientLiquidityException => throw( InsufficientLiquidityException ),
 // il player non dispone dello stock che sta tentando di vendere
                 NotOwnedStockException => throw ( NotOwnedStockException )
-            )
+            );
+
+// semafori per la sincronizzazione della critical section all'interno di registerStock e registerPlayer
+    createRegisterStockSemaphore;
+    createRegisterPlayerSemaphore     
 }
 
 
@@ -188,22 +221,26 @@ newStock.totalPrice
 
 // operazione esposta agli stocks sulla porta 8001, definita nell'interfaccia StockToMarketCommunicationInterface
     [ registerStock( newStock )( response ) {
+
+// sezione critica minimale per prevenire la particolare casistica in cui due o più Stock con lo stesso nome
+// accedano in contemporanea all'operazione        
+        acquire@SemaphoreUtils( global.semaphores.registerStock )( response );
+
 // dynamic lookup rispetto alla stringa newStock.name
         if ( ! is_defined( global.registeredStocks.( newStock.name )[ 0 ] )) {
+            global.registeredStocks.( newStock.name )[ 0 ].totalPrice = newStock.totalPrice;
+
+            release@SemaphoreUtils( global.semaphores.registerStock )( response );
+
+            me -> global.registeredStocks.( newStock.name )[ 0 ];
+            me.name = newStock.name;
 
             if ( DEBUG ) {
                 valueToPrettyString@StringUtils( newStock )( result );
                 println@Console( "\nMarket@registerStock, newStock:" + result )()
-            };
-
-// nel caso l'operazione registerStock non sia conclusa, ma sia il player richieda infoStockList?
-
-            global.registeredStocks.( newStock.name )[ 0 ].totalPrice = newStock.totalPrice;
-            me -> global.registeredStocks.( newStock.name )[ 0 ];
-            me.name = newStock.name;
+            };            
 
     // [MonitorX] Registrazione Stock
-
             with (toPrint1) {
                 .type = "stockRegistration";
                 .screen = 3;
@@ -214,7 +251,6 @@ newStock.totalPrice
                 .type = "stockRegistration";
                 .stockName = me.name
             };
-
             printOut@MonitorX(toPrint1);
             printOut@MonitorX(toPrint2);
 
@@ -230,15 +266,20 @@ newStock.totalPrice
             response = true
 
         } else {
-            /* esiste uno stock con lo stesso nome è già registrato al market
-             * (caso praticamente impossibile visto che StocksDiscoverer presta
+            /* uno stock con lo stesso nome è già registrato al market
+             * (caso praticamente impossibile visto che StocksMng presta
              * particolare attenzione al parsing dei nomi dei nuovi stock);
              * ma noi siamo avanti e risolviamo problemi impossibili ;)
              */
+            release@SemaphoreUtils( global.semaphores.registerStock )( response );
             throw( StockDuplicatedException, { .stockName = newStock.name } )
         }
-// fintantochè questa variabile non è impostata non potrà esser svolta alcuna operazione relativa allo stock (is_defined)
-    } ] { me.registrationCompleted = true }
+// fintantochè la seguente variabile non è impostata, il player non potrà effettuare alcuna operazione
+// si noti is_defined come istruzione di incipit delle altre operazioni
+    } ] {
+            me.registrationCompleted = true;
+            release@SemaphoreUtils( { .name = newStock.name } )( response )
+        }
 
 
 
@@ -256,14 +297,20 @@ newStock.totalPrice
 // Richiesta in entrata dal Player
     [ registerPlayer( incomingPlayer )( newAccount ) {
 
-// Caso in cui il Player è nuovo
+// sezione critica minimale per prevenire la particolare casistica in cui due o più Player con lo stesso nome
+// accedano in contemporanea all'operazione
+        acquire@SemaphoreUtils( global.semaphores.registerPlayer )( response );
+
+// abbiamo a che fare con un nuovo Player
         if ( ! is_defined( global.accounts.( incomingPlayer ) )) {
             global.accounts.( incomingPlayer ) = incomingPlayer;
+
+            release@SemaphoreUtils( global.semaphores.registerPlayer )( response );
+
             global.accounts.( incomingPlayer ).liquidity = double( DEFAULT_PLAYER_LIQUIDITY );
             newAccount << global.accounts.( incomingPlayer );
 
     // [MonitorX] Registrazione Player
-
             with (toPrint3) {
                 .type = "playerRegistration";
                 .screen = 1;
@@ -282,14 +329,15 @@ newStock.totalPrice
             playerName = incomingPlayer;
             createPlayerSemaphore
 
-// Caso in cui il player sia già presente, non dovrebbe
-// verificarsi; tuttavia intercetto e rilancio un'eventuale eccezione
+// caso in cui un player con lo stesso nome tenti una nuova registrazione
         } else {
+            release@SemaphoreUtils( global.semaphores.registerPlayer )( response );
             throw( PlayerDuplicatedException, { .playerName = incomingPlayer })
         }
 
     } ] {
-// fintantochè questa variabile non è impostata, il player non potrà effettuare alcuna operazione (is_defined)
+// fintantochè la seguente variabile non è impostata, il player non potrà effettuare alcuna operazione
+// si noti is_defined come istruzione di incipit delle altre operazioni
         global.accounts.( incomingPlayer ).registrationCompleted = true;
         if ( DEBUG ) println@Console( "\nregisterPlayer@Market, incomingPlayer: " + incomingPlayer )()
     }
@@ -460,7 +508,8 @@ newStock.totalPrice
 
 // TO REMOVE, for debug purpose only =)
 //            println@Console( "Aspetto 3 secondi prima di rilasciare il semaforo su " + transactionRequest.stock )();
-//            sleep@Time( 3000 )();
+            //sleep@Time( 3000 )();
+
             release@SemaphoreUtils( currentPlayer.semaphore )( response );
             release@SemaphoreUtils( currentStock.semaphore )( response )
         }
