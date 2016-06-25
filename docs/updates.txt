@@ -1,3 +1,6 @@
+2016_06_25 Stefania
+- Player.ol e player2.ol ora possono gestire eccezioni, uniche interruzioni che fermano i player sono il Market down e Player duplicato
+
 2016_06_23 Fausto
 -Tirato su MonitorX in /main/Out che ora contiene il MonitorX.java, vari .class per lui e le sue
     sottoclassi, MonitorX.jar che è necessario, e jolie.jar la libreria java per la connessione
