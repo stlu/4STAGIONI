@@ -184,7 +184,7 @@ main {
         if (action==1){
           nextBuy.stock = stockName; buy;
           if (DEBUG) println@Console("comprato "+ stockName)()
-        }else if(action==2 && status.ownedStock.(stockName).quantity>0){
+        }else if(action==2 && global.status.ownedStock.(stockName).quantity>0){
           nextSell.stock = stockName; sell;
           if (DEBUG) println@Console("venduto"+ stockName)()
         };
