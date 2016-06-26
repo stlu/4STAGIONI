@@ -159,16 +159,20 @@ main {
           .stock = ""
       };
 
-    while ( true ) {
+      while ( true ) {
         for (i=0,i<3, i++){
           infoStockList;
           randGenStock;
           infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
-          nextBuy.stock = stockName; buy;
-          nextBuy.stock = stockName; buy;
+          if (global.status.liquidity>responsePrice){
+            nextBuy.stock = stockName; buy;
+            infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice2 );
+            if (global.status.liquidity>responsePrice2){
+              nextBuy.stock = stockName; buy
+            }
+          };
           sleep@Time( 1500 )()
         };
-        infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice2 );
         if (DEBUG) println@Console(global.status.ownedStock.(stockName).quantity)();
         while ((global.status.ownedStock.(stockName).quantity)!=0){
           nextSell.stock = stockName; sell
