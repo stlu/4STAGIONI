@@ -31,7 +31,7 @@ outputPort Self { Interfaces: LocalInterface }
  *      jolie -C Player_Name=\"Johnny\" Player.ol
  */
 constants {
-    Player_Name = "speculative Player",
+    Player_Name = "Speculative Player",
     Frequence = 3000
 }
 
@@ -40,24 +40,26 @@ constants {
 
 define infoStockList {
     infoStockList@PlayerToMarketCommunication( "info" )( responseInfo );
-    println@Console( "informazioni ricevute sugli stock" )();
-    for ( k = 0, k < #responseInfo.name, k++ ) {
-        println@Console( responseInfo.name[k] )()
-        }
-    }
+    if (DEBUG) {
+      println@Console( "informazioni ricevute sugli stock " )();
+      for ( k = 0, k < #responseInfo.name, k++ ) {
+          println@Console( responseInfo.name[k] )()
+      }
+   }
+}
 
 define buy {
     buyStock@PlayerToMarketCommunication( nextBuy )( receipt );
     if(receipt.esito == true) {
-        status.ownedStock.(receipt.stock).quantity += receipt.kind;
-        status.liquidity += receipt.price
+        global.status.ownedStock.(receipt.stock).quantity += receipt.kind;
+        global.status.liquidity += receipt.price
     }
 }
 define sell {
     sellStock@PlayerToMarketCommunication( nextSell )( receipt );
     if(receipt.esito == true) {
-        status.ownedStock.(receipt.stock).quantity += receipt.kind;
-        status.liquidity += receipt.price
+        global.status.ownedStock.(receipt.stock).quantity += receipt.kind;
+        global.status.liquidity += receipt.price
     }
 }
 define randGenStock {
@@ -75,7 +77,10 @@ init {
 
     install (
         //  market è down errore irreversibile,interrompo l'esecuzione del programma
-            IOException =>                      println@Console( MARKET_DOWN_EXCEPTION )(); halt@Runtime()(),
+            IOException =>                      println@Console( MARKET_DOWN_EXCEPTION )();
+                                                valueToPrettyString@StringUtils( global.status )( result );
+                                                println@Console( "Speculative Player " + result )();halt@Runtime()(),
+
         // il player name è già in uso interrompe esecuzione
             PlayerDuplicatedException =>        valueToPrettyString@StringUtils(  main.PlayerDuplicatedException )( result );
                                                 println@Console( "PlayerDuplicatedException\n" + result )(); halt@Runtime()(),
@@ -140,7 +145,6 @@ main {
   // OneWay riflessivo; operazione esecuzione del player
   [ runplayer() ] {
 
-      checkMarketStatus@PlayerToMarketCommunication()( server_conn );
       /*
        * Il player mantiene queste due piccole strutture dati alle quali cambia
        * di volta in volta il nome dello stock oggetto della transazione prima di
@@ -155,19 +159,19 @@ main {
           .stock = ""
       };
 
-    while ( server_conn ) {
+    while ( true ) {
         for (i=0,i<3, i++){
-        infoStockList;
-        randGenStock;
-        infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
-        nextBuy.stock = stockName; buy;
-        nextBuy.stock = stockName; buy;
-        sleep@Time( 1500 )()
+          infoStockList;
+          randGenStock;
+          infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
+          nextBuy.stock = stockName; buy;
+          nextBuy.stock = stockName; buy;
+          sleep@Time( 1500 )()
         };
         infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice2 );
-        println@Console(status.ownedStock.(stockName).quantity)();
-        while ((status.ownedStock.(stockName).quantity)!=0){
-        nextSell.stock = stockName; sell
+        if (DEBUG) println@Console(global.status.ownedStock.(stockName).quantity)();
+        while ((global.status.ownedStock.(stockName).quantity)!=0){
+          nextSell.stock = stockName; sell
         };
               /*infoStockAvailability@PlayerToMarketCommunication( stockName )( responseAvailability );
         println@Console("disponibilità di: " + stockName + " = " + responseAvailability )();

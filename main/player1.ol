@@ -45,7 +45,10 @@ init {
 
     install (
         //  market è down errore irreversibile,interrompo l'esecuzione del programma
-            IOException =>                      println@Console( MARKET_DOWN_EXCEPTION )(); halt@Runtime()(),
+            IOException =>                      println@Console( MARKET_DOWN_EXCEPTION )();
+                                                valueToPrettyString@StringUtils( global.status )( result );
+                                                println@Console( "Random Player " + result )();halt@Runtime()(),
+
         // il player name è già in uso interrompe esecuzione
             PlayerDuplicatedException =>        valueToPrettyString@StringUtils(  main.PlayerDuplicatedException )( result );
                                                 println@Console( "PlayerDuplicatedException\n" + result )(); halt@Runtime()(),
@@ -81,23 +84,25 @@ execution { concurrent }
 
 define infoStockList {
     infoStockList@PlayerToMarketCommunication( "info" )( responseInfo );
-    println@Console( "informazioni ricevute sugli stock" )();
-    for ( k = 0, k < #responseInfo.name, k++ ) {
-        println@Console( responseInfo.name[k] )()
+    if (DEBUG) {
+      println@Console( "informazioni ricevute sugli stock " )();
+      for ( k = 0, k < #responseInfo.name, k++ ) {
+          println@Console( responseInfo.name[k] )()
+      }
     }
 }
 define buy {
     buyStock@PlayerToMarketCommunication( nextBuy )( receipt );
     if(receipt.esito == true) {
-        status.ownedStock.(receipt.stock).quantity += receipt.kind;
-        status.liquidity += receipt.price
+        global.status.ownedStock.(receipt.stock).quantity += receipt.kind;
+        global.status.liquidity += receipt.price
     }
 }
 define sell {
     sellStock@PlayerToMarketCommunication( nextSell )( receipt );
     if(receipt.esito == true) {
-        status.ownedStock.(receipt.stock).quantity += receipt.kind;
-        status.liquidity += receipt.price
+        global.status.ownedStock.(receipt.stock).quantity += receipt.kind;
+        global.status.liquidity += receipt.price
     }
 }
 define randGenStock {
@@ -156,7 +161,6 @@ main {
   // OneWay riflessivo; operazione esecuzione del player
   [ runplayer() ] {
 
-      checkMarketStatus@PlayerToMarketCommunication()( server_conn );
       /*
        * Il player mantiene queste due piccole strutture dati alle quali cambia
        * di volta in volta il nome dello stock oggetto della transazione prima di
@@ -171,7 +175,7 @@ main {
           .stock = ""
       };
 
-    while ( server_conn ) {
+    while ( true ) {
         infoStockList;
         randGenStock;
         infoStockPrice@PlayerToMarketCommunication( stockName )( responsePrice );
@@ -179,10 +183,10 @@ main {
         randGenAction;
         if (action==1){
           nextBuy.stock = stockName; buy;
-          println@Console("comprato "+ stockName)()
+          if (DEBUG) println@Console("comprato "+ stockName)()
         }else if(action==2 && status.ownedStock.(stockName).quantity>0){
           nextSell.stock = stockName; sell;
-          println@Console("venduto"+ stockName)()
+          if (DEBUG) println@Console("venduto"+ stockName)()
         };
 
 // BOOM BOOM BOOM every 3 seconds
