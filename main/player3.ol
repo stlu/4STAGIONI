@@ -19,6 +19,7 @@ outputPort PlayerToMarketCommunication {
 interface LocalInterface {
     OneWay: registrationplayer( void ) // registrazione del player presso il market
     OneWay: runplayer( void )
+    OneWay: sellStockPlayer( void )
 }
 inputPort LocalInputPort {
     Location: "local"
@@ -100,7 +101,7 @@ init {
         // liquidità del player terminata
             InsufficientLiquidityException =>   valueToPrettyString@StringUtils(  main.InsufficientLiquidityException )( result );
                                                 println@Console( "InsufficientLiquidityException\n" + result )();
-                                                runplayer@Self(),
+                                                sellStockPlayer@Self(),
         // il player non dispone dello stock che sta tentando di vendere
             NotOwnedStockException =>           valueToPrettyString@StringUtils(  main.NotOwnedStockException )( result );
                                                 println@Console( "NotOwnedStockException\n" + result )();
@@ -110,10 +111,26 @@ init {
 
 execution { concurrent }
 main {
-
+  [ sellStockPlayer() ] {
+    with( nextBuy ) {
+        .player = Player_Name;
+        .stock = ""
+    };
+    with ( nextSell ) {
+        .player = Player_Name;
+        .stock = ""
+    };
+      infoStockList;
+      randGenStock;
+      while ((global.status.ownedStock.(stockName).quantity)!=0){
+        nextSell.stock = stockName; sell
+      };
+      runplayer@Self()
+    }
 
 
   [ registrationplayer() ] {
+
 
       install(
           // se il player tenta la registrazione ed il market è down errore irreversibile,
