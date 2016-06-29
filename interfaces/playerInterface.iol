@@ -50,15 +50,15 @@ type TransactionExceptionType: void {
 }
 
 interface PlayerToMarketCommunicationInterface {
-    RequestResponse: registerPlayer( string )( PlayerStatus ) throws PlayerDuplicatedException( PlayerNameExceptionType )
-    RequestResponse: buyStock( TransactionRequest )( Receipt ) throws   StockUnknownException( StockNameExceptionType )
+    RequestResponse: registerPlayer( string )( PlayerStatus ) throws PlayerDuplicatedException( PlayerNameExceptionType ),
+                     buyStock( TransactionRequest )( Receipt ) throws   StockUnknownException( StockNameExceptionType )
                                                                         PlayerUnknownException( PlayerNameExceptionType )
                                                                         StockAvailabilityException( StockNameExceptionType )
-                                                                        InsufficientLiquidityException( TransactionExceptionType )
-    RequestResponse: sellStock( TransactionRequest )( Receipt ) throws  StockUnknownException( StockNameExceptionType )
+                                                                        InsufficientLiquidityException( TransactionExceptionType ),
+                     sellStock( TransactionRequest )( Receipt ) throws  StockUnknownException( StockNameExceptionType )
                                                                         PlayerUnknownException( PlayerNameExceptionType )
-                                                                        NotOwnedStockException ( StockNameExceptionType )
-    RequestResponse: infoStockList( string )( InfoStockStruct ) throws StockUnknownException( StockNameExceptionType )
-    RequestResponse: infoStockPrice( string )( double ) throws StockUnknownException( StockNameExceptionType )
-    RequestResponse: infoStockAvailability( string )( double ) throws StockUnknownException( StockNameExceptionType )
+                                                                        NotOwnedStockException ( StockNameExceptionType ),
+                     infoStockList( string )( InfoStockStruct ) throws StockUnknownException( StockNameExceptionType ),
+                     infoStockPrice( string )( double ) throws StockUnknownException( StockNameExceptionType ),
+                     infoStockAvailability( string )( double ) throws StockUnknownException( StockNameExceptionType )
 }

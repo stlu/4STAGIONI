@@ -45,24 +45,24 @@ type StockVariationStruct: void {
 
 // interfaccia di comunicazione con ciascuna stock instance dinamicamente allocata (ed embeddata) all'interno di StocksMng.ol
 interface StockInstanceInterface {
-    RequestResponse: start( StockSubStruct )( void )
-    RequestResponse: buyStock( void )( bool )
-    RequestResponse: sellStock( void )( bool )
-    RequestResponse: infoStockAvailability( void )( int )
+    RequestResponse: start( StockSubStruct )( void ),
+                     buyStock( void )( bool ),
+                     sellStock( void )( bool ),
+                     infoStockAvailability( void )( int )
 }
 
 // from stocks to market
 interface StockToMarketCommunicationInterface {
     RequestResponse: registerStock( StockRegistrationStruct )( bool ) throws StockDuplicatedException( StockNameExceptionType )
 
-    OneWay: addStock( StockVariationStruct )
-    OneWay: destroyStock( StockVariationStruct )
+    OneWay: addStock( StockVariationStruct ),
+            destroyStock( StockVariationStruct )
 }
 
 // from market to stocks (passando per StocksMng.ol)
 interface MarketToStockCommunicationInterface {
     RequestResponse: buyStock( string )( bool ) throws  StockUnknownException( StockNameExceptionType )
-                                                        StockAvailabilityException( StockNameExceptionType )
-    RequestResponse: sellStock( string )( bool ) throws StockUnknownException( StockNameExceptionType ) 
-    RequestResponse: infoStockAvailability( string )( int ) throws StockUnknownException( StockNameExceptionType )
+                                                        StockAvailabilityException( StockNameExceptionType ),
+                     sellStock( string )( bool ) throws StockUnknownException( StockNameExceptionType ), 
+                     infoStockAvailability( string )( int ) throws StockUnknownException( StockNameExceptionType )
 }
