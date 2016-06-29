@@ -572,7 +572,7 @@ newStock.totalPrice
             if ( availability <= 1 ) {
                 currentPrice = currentStock.totalPrice
             } else {
-// calcolo il prezzo unitario
+// calcolo il prezzo unitario                
                 currentPrice = currentStock.totalPrice / availability;
                 toRound = currentPrice; round; currentPrice = roundedValue
             };
@@ -596,10 +596,16 @@ newStock.totalPrice
 // (4) si diminuisce il prezzo totale dello Stock in maniera corrispondente a quanto riportato in...
 // decremento il prezzo totale rispetto alla variazione calcolata dall'algoritmo di pricing (define priceDec)
             timeCalc; priceDec; // algoritmo di pricing
-            currentStock.totalPrice -= priceVariation;
-            toRound = currentStock.totalPrice; round; currentStock.totalPrice = roundedValue;
 
-            if ( DEBUG ) println@Console( ">>> SELLSTOCK decremento il prezzo di: " + priceVariation )();
+// da specifiche il prezzo totale non può diminuire oltre il MINIMUN_STOCK_PRICE (10)
+            if ( ( currentStock.totalPrice - priceVariation ) <= MINIMUN_STOCK_PRICE ) {
+                currentStock.totalPrice = MINIMUN_STOCK_PRICE;
+                if ( DEBUG ) println@Console( ">>> SELLSTOCK prezzo bloccato a: " + MINIMUN_STOCK_PRICE )()
+            } else {
+                currentStock.totalPrice -= priceVariation; 
+                toRound = currentStock.totalPrice; round; currentStock.totalPrice = roundedValue;     
+                if ( DEBUG ) println@Console( ">>> SELLSTOCK decremento il prezzo di: " + priceVariation )()
+            };
 
 // Inizializza la struttura della receipt
             with( receipt ) {
