@@ -3,6 +3,8 @@ package Out;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 
+import java.util.Locale;
+
 import jolie.runtime.JavaService;
 import jolie.runtime.Value;
 import jolie.runtime.ValueVector;
@@ -40,6 +42,7 @@ public class MonitorX extends JavaService {
      * Creates new form Monitor
      */
     public MonitorX() {
+        Locale.setDefault(Locale.US);
         initComponents();
         finestra.addComponentListener(res);
         finestra.setSize(1100, 600);
