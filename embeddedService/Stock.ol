@@ -13,9 +13,9 @@ include "math.iol"
 
 // le seguenti definizioni di interfaccia e outputPort consento un'invocazione "riflessiva"
 interface LocalInterface {
-    OneWay: registration( void ) // registrazione dello stock presso il market
-    OneWay: wasting( void ) // deperimento
-    OneWay: production( void ) // produzione
+    OneWay: registration( void ),   // registrazione dello stock presso il market
+            wasting( void ),        // deperimento
+            production( void )      // produzione
 }
 outputPort Self { Interfaces: LocalInterface }
 
